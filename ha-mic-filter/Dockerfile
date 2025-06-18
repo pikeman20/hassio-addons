@@ -2,13 +2,13 @@ ARG BUILD_FROM
 FROM $BUILD_FROM
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     pulseaudio \
-    libpulse-dev \
+    pulseaudio-dev \
     pulseaudio-utils \
     alsa-utils \
-    libasound2-dev \
-    portaudio19-dev \
+    alsa-lib-dev \
+    portaudio-dev \
     gcc \
     g++ \
     make \
@@ -18,11 +18,10 @@ RUN apt-get update && apt-get install -y \
     bash \
     jq \
     nodejs \
-    npm \
-    && rm -rf /var/lib/apt/lists/*
+    npm
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir --break-system-packages \
+RUN pip3 install --no-cache-dir \
     numpy \
     pyaudio \
     pulsectl \
