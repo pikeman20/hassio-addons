@@ -16,4 +16,8 @@ fi
 
 # Start the main service
 bashio::log.info "Starting Real-time Microphone Filter..."
+
+# Set Python path
+export PYTHONPATH="/app:${PYTHONPATH:-}"
+
 exec python3 /app/ha_mic_filter_service.py

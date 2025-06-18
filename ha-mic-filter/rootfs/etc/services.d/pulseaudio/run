@@ -19,5 +19,4 @@ exec pulseaudio \
     --use-pid-file=false \
     --disable-shm \
     --exit-idle-time=-1 \
-    --file=/tmp/pulse-config/system.pa \
-    --disable-memfd
+    --file=/tmp/pulse-config/system.pa

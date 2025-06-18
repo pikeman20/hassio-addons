@@ -78,7 +78,6 @@ disable-shm = yes
 exit-idle-time = -1
 flat-volumes = no
 rlimit-memlock = -1
-enable-memfd = no
 high-priority = no
 realtime-scheduling = no
 nice-level = 0
