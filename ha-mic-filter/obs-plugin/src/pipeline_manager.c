@@ -219,24 +219,24 @@ obs_pipeline_result_t pipeline_manager_update_filter(struct pipeline_manager* ma
     // Update filter parameters
     switch (params->type) {
         case OBS_FILTER_GAIN:
-            result = filter_wrapper_gain_update(filter->filter_data, &params->params.gain);
+            result = filter_wrapper_gain_update(filter->filter_data, (const gain_filter_params_t*)&params->params.gain);
             break;
 
         case OBS_FILTER_NOISE_SUPPRESS:
-            result = filter_wrapper_noise_suppress_update(filter->filter_data, &params->params.noise_suppress);
+            result = filter_wrapper_noise_suppress_update(filter->filter_data, (const noise_suppress_filter_params_t*)&params->params.noise_suppress);
             break;
 
         case OBS_FILTER_EQUALIZER_3BAND:
-            result = filter_wrapper_eq_update(filter->filter_data, &params->params.equalizer_3band);
+            result = filter_wrapper_eq_update(filter->filter_data, (const eq_filter_params_t*)&params->params.equalizer_3band);
             break;
 
         case OBS_FILTER_COMPRESSOR:
-            result = filter_wrapper_compressor_update(filter->filter_data, &params->params.compressor);
+            result = filter_wrapper_compressor_update(filter->filter_data, (const compressor_filter_params_t*)&params->params.compressor);
             break;
 
         case OBS_FILTER_EXPANDER:
         case OBS_FILTER_UPWARD_COMPRESSOR:
-            result = filter_wrapper_expander_update(filter->filter_data, &params->params.expander);
+            result = filter_wrapper_expander_update(filter->filter_data, (const expander_filter_params_t*)&params->params.expander);
             break;
 
         default:

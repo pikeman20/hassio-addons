@@ -15,7 +15,7 @@ privileged:
   - SYS_PTRACE
 devices:
   - /dev/snd
-apparmor: true
+apparmor: false
 map:
   - share:rw
   - config:rw
