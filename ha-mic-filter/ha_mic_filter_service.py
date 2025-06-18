@@ -256,25 +256,19 @@ class HAMicFilterService:
             self.pulse_manager.virtual_sink_name = VIRTUAL_MIC_SINK_NAME
             self.pulse_manager.virtual_source_name = VIRTUAL_MIC_SOURCE_NAME
             
+            # Virtual devices are created by PulseAudio config, so we skip creating them here
+            self.logger.info("Virtual microphone devices are managed by PulseAudio configuration")
+            self.logger.info(f"Expected devices: sink='{VIRTUAL_MIC_SINK_NAME}', source='{VIRTUAL_MIC_SOURCE_NAME}'")
+            
             # Wait a moment for PulseAudio devices to be fully ready
-            time.sleep(1)
+            time.sleep(2)
             
-            # Refresh devices to check if virtual devices exist
-            self.pulse_manager.refresh_devices()
-            
-            # Check if virtual microphone already exists (created by PulseAudio config)
-            virtual_mic_exists = self.pulse_manager.find_device_by_name(VIRTUAL_MIC_SOURCE_NAME) is not None
-            virtual_sink_exists = self.pulse_manager.find_device_by_name(VIRTUAL_MIC_SINK_NAME) is not None
-            
-            if virtual_mic_exists and virtual_sink_exists:
-                self.logger.info(f"Virtual microphone devices already exist: sink='{VIRTUAL_MIC_SINK_NAME}', source='{VIRTUAL_MIC_SOURCE_NAME}'")
-            else:
-                # Virtual devices not found, try to create them
-                virtual_mic_name = self.config.get('virtual_mic_name', DEFAULT_VIRTUAL_MIC_DESCRIPTION)
-                self.logger.info(f"Creating virtual microphone with name: {virtual_mic_name}")
-                if not self.pulse_manager.create_virtual_microphone(virtual_mic_name):
-                    self.logger.error("Failed to create virtual microphone")
-                    return False
+            # Try to refresh devices, but don't fail if it doesn't work
+            try:
+                self.pulse_manager.refresh_devices()
+                self.logger.info("Device refresh completed")
+            except Exception as e:
+                self.logger.warning(f"Device refresh failed (this is normal in containers): {e}")
             
             # Setup audio pipeline
             if not self.setup_audio_pipeline():
