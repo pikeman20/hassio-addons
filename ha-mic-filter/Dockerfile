@@ -65,7 +65,7 @@ COPY run.sh /
 RUN chmod a+x /run.sh
 
 # Set environment variables for container
-ENV PULSE_SERVER=unix:/tmp/pulse-socket
+ENV PULSE_SERVER=unix:/tmp/pulse-external-socket
 ENV PULSE_SCRIPT=/tmp/pulse-config/system.pa
 ENV PULSE_CONFIG_PATH=/tmp/pulse-config
 
@@ -74,7 +74,7 @@ LABEL \
     io.hass.name="Real-time Microphone Filter" \
     io.hass.type="addon" \
     io.hass.arch="aarch64|amd64|armv7" \
-    io.hass.version="1.0.7"
+    io.hass.version="1.0.8"
 
 # Main command
 CMD [ "/run.sh" ]
