@@ -4,8 +4,15 @@
 # Main execution script
 # ==============================================================================
 
-# Wait for services to be ready
-s6-svwait -u /var/run/s6/services/pulseaudio
+# Wait for PulseAudio to be ready (but not wait for it to stop)
+bashio::log.info "Waiting for PulseAudio to be ready..."
+sleep 5
+
+# Check if PulseAudio is running
+if ! pgrep pulseaudio > /dev/null; then
+    bashio::log.error "PulseAudio is not running"
+    exit 1
+fi
 
 # Start the main service
 bashio::log.info "Starting Real-time Microphone Filter..."

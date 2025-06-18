@@ -13,9 +13,40 @@ mkdir -p /tmp/pulse-config
 cat > /tmp/pulse-config/system.pa << 'EOF'
 #!/usr/bin/pulseaudio -nF
 
-# Load audio drivers
+# Load basic modules first
+load-module module-device-restore
+load-module module-stream-restore
+load-module module-card-restore
+
+# Try to load ALSA modules, but continue if they fail (container environment)
+.ifexists module-udev-detect.so
+load-module module-udev-detect
+.endif
+
+# Load native protocol first for basic connectivity
+load-module module-native-protocol-unix
+
+# Load fallback null sink (this will be loaded by module-always-sink if no other sinks)
+load-module module-always-sink
+
+# Load suspend on idle
+load-module module-suspend-on-idle
+
+# Load position event sounds
+load-module module-position-event-sounds
+
+# Try to load ALSA sink/source modules, but continue if they fail
+.ifexists module-alsa-sink.so
+.nofail
 load-module module-alsa-sink
+.fail
+.endif
+
+.ifexists module-alsa-source.so
+.nofail
 load-module module-alsa-source
+.fail
+.endif
 
 # Load null sink for virtual microphone
 load-module module-null-sink sink_name=virtual_mic_sink sink_properties=device.description="Virtual_Microphone_Sink"
@@ -26,10 +57,8 @@ load-module module-virtual-source source_name=virtual_mic source_properties=devi
 # Load loopback module for real-time processing
 load-module module-loopback
 
-# Load native protocol
+# Load additional protocol modules
 load-module module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-socket
-
-# Load CLI protocol for control
 load-module module-cli-protocol-unix
 
 # Set default devices
@@ -49,6 +78,10 @@ disable-shm = yes
 exit-idle-time = -1
 flat-volumes = no
 rlimit-memlock = -1
+enable-memfd = no
+high-priority = no
+realtime-scheduling = no
+nice-level = 0
 EOF
 
 # Set environment variable for PulseAudio to find the config files

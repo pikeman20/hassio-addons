@@ -13,11 +13,11 @@ export PULSE_CONFIG_PATH=/tmp/pulse-config
 exec pulseaudio \
     --system \
     --disallow-exit \
-    --disallow-module-loading \
     --daemonize=false \
     --log-target=stderr \
     --log-level=info \
     --use-pid-file=false \
     --disable-shm \
     --exit-idle-time=-1 \
-    --file=/tmp/pulse-config/system.pa
+    --file=/tmp/pulse-config/system.pa \
+    --disable-memfd

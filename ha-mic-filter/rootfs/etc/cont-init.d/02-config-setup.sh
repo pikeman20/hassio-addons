@@ -16,6 +16,7 @@ declare channels
 declare buffer_size_ms
 declare auto_start
 declare log_level
+declare monitor_to_speakers
 
 input_device=$(bashio::config 'input_device')
 output_device=$(bashio::config 'output_device')
@@ -26,6 +27,7 @@ channels=$(bashio::config 'channels')
 buffer_size_ms=$(bashio::config 'buffer_size_ms')
 auto_start=$(bashio::config 'auto_start')
 log_level=$(bashio::config 'log_level')
+monitor_to_speakers=$(bashio::config 'monitor_to_speakers')
 
 # Set environment variables for the Python service
 export INPUT_DEVICE="${input_device}"
@@ -37,6 +39,7 @@ export CHANNELS="${channels}"
 export BUFFER_SIZE_MS="${buffer_size_ms}"
 export AUTO_START="${auto_start}"
 export LOG_LEVEL="${log_level^^}"
+export MONITOR_TO_SPEAKERS="${monitor_to_speakers}"
 
 # Read audio pipeline configuration
 declare noise_suppression_enabled
@@ -44,10 +47,10 @@ declare noise_suppression_method
 declare noise_suppression_intensity
 declare noise_suppression_suppress_level
 
-noise_suppression_enabled=$(bashio::config 'audio_pipeline.noise_suppression.enabled')
-noise_suppression_method=$(bashio::config 'audio_pipeline.noise_suppression.method')
-noise_suppression_intensity=$(bashio::config 'audio_pipeline.noise_suppression.intensity')
-noise_suppression_suppress_level=$(bashio::config 'audio_pipeline.noise_suppression.suppress_level')
+noise_suppression_enabled=$(bashio::config 'noise_suppression_enabled')
+noise_suppression_method=$(bashio::config 'noise_suppression_method')
+noise_suppression_intensity=$(bashio::config 'noise_suppression_intensity')
+noise_suppression_suppress_level=$(bashio::config 'noise_suppression_suppress_level')
 
 export NOISE_SUPPRESSION_ENABLED="${noise_suppression_enabled}"
 export NOISE_SUPPRESSION_METHOD="${noise_suppression_method}"
@@ -58,8 +61,8 @@ export NOISE_SUPPRESSION_SUPPRESS_LEVEL="${noise_suppression_suppress_level}"
 declare gain_enabled
 declare gain_db
 
-gain_enabled=$(bashio::config 'audio_pipeline.gain.enabled')
-gain_db=$(bashio::config 'audio_pipeline.gain.gain_db')
+gain_enabled=$(bashio::config 'gain_enabled')
+gain_db=$(bashio::config 'gain_db')
 
 export GAIN_ENABLED="${gain_enabled}"
 export GAIN_DB="${gain_db}"
@@ -69,10 +72,10 @@ declare eq_low_db
 declare eq_mid_db
 declare eq_high_db
 
-eq_enabled=$(bashio::config 'audio_pipeline.equalizer.enabled')
-eq_low_db=$(bashio::config 'audio_pipeline.equalizer.low_db')
-eq_mid_db=$(bashio::config 'audio_pipeline.equalizer.mid_db')
-eq_high_db=$(bashio::config 'audio_pipeline.equalizer.high_db')
+eq_enabled=$(bashio::config 'equalizer_enabled')
+eq_low_db=$(bashio::config 'equalizer_low_db')
+eq_mid_db=$(bashio::config 'equalizer_mid_db')
+eq_high_db=$(bashio::config 'equalizer_high_db')
 
 export EQ_ENABLED="${eq_enabled}"
 export EQ_LOW_DB="${eq_low_db}"
@@ -86,12 +89,12 @@ declare exp_attack_time
 declare exp_release_time
 declare exp_output_gain
 
-exp_enabled=$(bashio::config 'audio_pipeline.expander.enabled')
-exp_ratio=$(bashio::config 'audio_pipeline.expander.ratio')
-exp_threshold=$(bashio::config 'audio_pipeline.expander.threshold')
-exp_attack_time=$(bashio::config 'audio_pipeline.expander.attack_time')
-exp_release_time=$(bashio::config 'audio_pipeline.expander.release_time')
-exp_output_gain=$(bashio::config 'audio_pipeline.expander.output_gain')
+exp_enabled=$(bashio::config 'expander_enabled')
+exp_ratio=$(bashio::config 'expander_ratio')
+exp_threshold=$(bashio::config 'expander_threshold')
+exp_attack_time=$(bashio::config 'expander_attack_time')
+exp_release_time=$(bashio::config 'expander_release_time')
+exp_output_gain=$(bashio::config 'expander_output_gain')
 
 export EXP_ENABLED="${exp_enabled}"
 export EXP_RATIO="${exp_ratio}"
@@ -107,12 +110,12 @@ declare comp_attack_time
 declare comp_release_time
 declare comp_output_gain
 
-comp_enabled=$(bashio::config 'audio_pipeline.compressor.enabled')
-comp_ratio=$(bashio::config 'audio_pipeline.compressor.ratio')
-comp_threshold=$(bashio::config 'audio_pipeline.compressor.threshold')
-comp_attack_time=$(bashio::config 'audio_pipeline.compressor.attack_time')
-comp_release_time=$(bashio::config 'audio_pipeline.compressor.release_time')
-comp_output_gain=$(bashio::config 'audio_pipeline.compressor.output_gain')
+comp_enabled=$(bashio::config 'compressor_enabled')
+comp_ratio=$(bashio::config 'compressor_ratio')
+comp_threshold=$(bashio::config 'compressor_threshold')
+comp_attack_time=$(bashio::config 'compressor_attack_time')
+comp_release_time=$(bashio::config 'compressor_release_time')
+comp_output_gain=$(bashio::config 'compressor_output_gain')
 
 export COMP_ENABLED="${comp_enabled}"
 export COMP_RATIO="${comp_ratio}"
@@ -125,9 +128,9 @@ declare lim_enabled
 declare lim_threshold
 declare lim_release_time
 
-lim_enabled=$(bashio::config 'audio_pipeline.limiter.enabled')
-lim_threshold=$(bashio::config 'audio_pipeline.limiter.threshold')
-lim_release_time=$(bashio::config 'audio_pipeline.limiter.release_time')
+lim_enabled=$(bashio::config 'limiter_enabled')
+lim_threshold=$(bashio::config 'limiter_threshold')
+lim_release_time=$(bashio::config 'limiter_release_time')
 
 export LIM_ENABLED="${lim_enabled}"
 export LIM_THRESHOLD="${lim_threshold}"
