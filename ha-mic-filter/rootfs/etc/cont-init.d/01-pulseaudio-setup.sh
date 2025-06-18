@@ -6,11 +6,11 @@
 
 bashio::log.info "Setting up PulseAudio for virtual microphone..."
 
-# Create PulseAudio configuration directory
-mkdir -p /etc/pulse
+# Create PulseAudio configuration directory in writable location
+mkdir -p /tmp/pulse-config
 
 # Create PulseAudio system configuration
-cat > /etc/pulse/system.pa << 'EOF'
+cat > /tmp/pulse-config/system.pa << 'EOF'
 #!/usr/bin/pulseaudio -nF
 
 # Load audio drivers
@@ -37,18 +37,21 @@ set-default-sink virtual_mic_sink
 EOF
 
 # Create PulseAudio client configuration
-cat > /etc/pulse/client.conf << 'EOF'
+cat > /tmp/pulse-config/client.conf << 'EOF'
 default-server = unix:/tmp/pulse-socket
 autospawn = no
 EOF
 
 # Create PulseAudio daemon configuration
-cat > /etc/pulse/daemon.conf << 'EOF'
+cat > /tmp/pulse-config/daemon.conf << 'EOF'
 system-instance = yes
 disable-shm = yes
 exit-idle-time = -1
 flat-volumes = no
 rlimit-memlock = -1
 EOF
+
+# Set environment variable for PulseAudio to find the config files
+export PULSE_CONFIG_PATH=/tmp/pulse-config
 
 bashio::log.info "PulseAudio configuration created successfully"

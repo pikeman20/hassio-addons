@@ -6,7 +6,10 @@
 
 bashio::log.info "Starting PulseAudio server..."
 
-# Start PulseAudio as system service
+# Set PulseAudio configuration path
+export PULSE_CONFIG_PATH=/tmp/pulse-config
+
+# Start PulseAudio as system service with custom config
 exec pulseaudio \
     --system \
     --disallow-exit \
@@ -16,4 +19,5 @@ exec pulseaudio \
     --log-level=info \
     --use-pid-file=false \
     --disable-shm \
-    --exit-idle-time=-1
+    --exit-idle-time=-1 \
+    --file=/tmp/pulse-config/system.pa

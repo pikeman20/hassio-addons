@@ -18,6 +18,9 @@ export PYTHONPATH="/app:$PYTHONPATH"
 # Set library path for obs-mic-filter
 export LD_LIBRARY_PATH="/app/lib:$LD_LIBRARY_PATH"
 
+# Set PulseAudio configuration path
+export PULSE_CONFIG_PATH=/tmp/pulse-config
+
 # Get configuration from Home Assistant
 declare auto_start
 auto_start=$(bashio::config 'auto_start')
