@@ -1,6 +1,6 @@
 ---
 name: Real-time Microphone Filter
-version: 1.0.2
+version: 1.0.3
 slug: ha-mic-filters
 description: Real-time microphone filtering for Home Assistant Assist with virtual audio device support
 url: https://github.com/pikeman20/hassio-addons
@@ -10,6 +10,8 @@ arch:
   - armv7
 init: false
 audio: true
+auth_api: true
+homeassistant_api: true
 privileged:
   - SYS_ADMIN
   - SYS_PTRACE
@@ -97,6 +99,4 @@ schema:
   limiter_enabled: bool?
   limiter_threshold: float?
   limiter_release_time: float?
-ports:
-  "11400/tcp": null
 homeassistant: 2023.11.0
