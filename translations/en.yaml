@@ -1,0 +1,31 @@
+configuration:
+  input_device_id:
+    name: Input Device ID
+    description: The ID of the input audio device to capture from (null for default).
+  output_device_id:
+    name: Output Device ID
+    description: The ID of the output audio device to play to (null for default).
+  monitoring_device_id:
+    name: Monitoring Device ID
+    description: The ID of the monitoring audio device (null for default).
+  virtual_mic_name:
+    name: Virtual Microphone Name
+    description: Name for the virtual microphone device created by the addon.
+  sample_rate:
+    name: Sample Rate
+    description: Audio sample rate in Hz (e.g., 48000).
+  channels:
+    name: Channels
+    description: Number of audio channels (1 for mono, 2 for stereo).
+  buffer_size_ms:
+    name: Buffer Size (ms)
+    description: Audio buffer size in milliseconds.
+  auto_start:
+    name: Auto Start
+    description: Automatically start the mic filter when the addon starts.
+  log_level:
+    name: Log Level
+    description: Logging level for the addon (debug, info, warning, error).
+  audio_pipeline:
+    name: Audio Processing Pipeline
+    description: Configuration for the audio processing pipeline.

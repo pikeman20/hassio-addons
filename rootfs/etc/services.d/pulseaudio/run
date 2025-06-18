@@ -1,0 +1,19 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: Real-time Microphone Filter
+# Runs PulseAudio server
+# ==============================================================================
+
+bashio::log.info "Starting PulseAudio server..."
+
+# Start PulseAudio as system service
+exec pulseaudio \
+    --system \
+    --disallow-exit \
+    --disallow-module-loading \
+    --daemonize=false \
+    --log-target=stderr \
+    --log-level=info \
+    --use-pid-file=false \
+    --disable-shm \
+    --exit-idle-time=-1

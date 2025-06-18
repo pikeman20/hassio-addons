@@ -1,0 +1,40 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: Real-time Microphone Filter
+# Runs the main microphone filtering service
+# ==============================================================================
+
+bashio::log.info "Starting Real-time Microphone Filter service..."
+
+# Wait for PulseAudio to be ready
+sleep 3
+
+# Change to app directory
+cd /app
+
+# Set Python path
+export PYTHONPATH="/app:$PYTHONPATH"
+
+# Set library path for obs-mic-filter
+export LD_LIBRARY_PATH="/app/lib:$LD_LIBRARY_PATH"
+
+# Get configuration from Home Assistant
+declare auto_start
+auto_start=$(bashio::config 'auto_start')
+
+declare log_level
+log_level=$(bashio::config 'log_level')
+
+# Set log level
+export LOG_LEVEL="${log_level^^}"
+
+bashio::log.info "Configuration loaded: auto_start=${auto_start}, log_level=${log_level}"
+
+# Start the main service
+if bashio::var.true "${auto_start}"; then
+    bashio::log.info "Auto-start enabled, starting microphone filter..."
+    exec python3 ha_mic_filter_service.py --auto-start
+else
+    bashio::log.info "Auto-start disabled, starting in standby mode..."
+    exec python3 ha_mic_filter_service.py
+fi

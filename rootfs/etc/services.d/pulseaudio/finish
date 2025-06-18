@@ -1,0 +1,10 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: Real-time Microphone Filter
+# Take down the S6 supervision tree when PulseAudio fails
+# ==============================================================================
+
+bashio::log.info "PulseAudio service stopped, stopping addon..."
+if [[ "$1" -ne 0 ]] && [[ "$1" -ne 256 ]]; then
+  bashio::log.warning "PulseAudio crashed with exit code ${1}"
+fi

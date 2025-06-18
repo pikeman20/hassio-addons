@@ -1,0 +1,87 @@
+#include <tunables/global>
+
+profile ha-mic-filter flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # Capabilities
+  file,
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # Bashio
+  /usr/lib/bashio/** ix,
+  /tmp/** rwk,
+
+  # Access to options.json and other files within your addon
+  /data/** rw,
+
+  # Audio device access
+  /dev/snd/** rw,
+  /proc/asound/** r,
+
+  # PulseAudio access
+  /etc/pulse/** r,
+  /run/pulse/** rw,
+  /tmp/pulse-*/** rw,
+
+  # Python and libraries
+  /usr/bin/python3 ix,
+  /usr/lib/python*/** r,
+  /app/** rwix,
+
+  # Start new profile for service
+  /usr/bin/python3 cx -> mic_filter_service,
+
+  profile mic_filter_service flags=(attach_disconnected,mediate_deleted) {
+    #include <abstractions/base>
+    #include <abstractions/python>
+
+    # Receive signals from S6-Overlay
+    signal (receive) peer=*_ha-mic-filter,
+
+    # Access to options.json and other files within your addon
+    /data/** rw,
+
+    # Access to mapped volumes specified in config.json
+    /share/** rw,
+    /config/** rw,
+
+    # Audio device access
+    /dev/snd/** rw,
+    /proc/asound/** r,
+
+    # PulseAudio access
+    /etc/pulse/** r,
+    /run/pulse/** rw,
+    /tmp/pulse-*/** rw,
+
+    # Application files
+    /app/** rwix,
+    /usr/bin/python3 ix,
+    /usr/lib/python*/** r,
+    /lib/** r,
+
+    # Shared libraries
+    /app/lib/** r,
+    /usr/lib/** r,
+    /lib/** r,
+
+    # System access
+    /etc/passwd r,
+    /etc/group r,
+    /dev/tty rw,
+    /proc/sys/kernel/random/uuid r,
+  }
+}
