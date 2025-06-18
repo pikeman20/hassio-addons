@@ -72,37 +72,12 @@ schema:
   auto_start: bool?
   log_level: list(debug|info|warning|error)?
   audio_pipeline:
-    noise_suppression:
-      enabled: bool?
-      method: list(speex|rnnoise)?
-      intensity: float?
-      suppress_level: int?
-    gain:
-      enabled: bool?
-      gain_db: float?
-    equalizer:
-      enabled: bool?
-      low_db: float?
-      mid_db: float?
-      high_db: float?
-    expander:
-      enabled: bool?
-      ratio: float?
-      threshold: float?
-      attack_time: float?
-      release_time: float?
-      output_gain: float?
-    compressor:
-      enabled: bool?
-      ratio: float?
-      threshold: float?
-      attack_time: float?
-      release_time: float?
-      output_gain: float?
-    limiter:
-      enabled: bool?
-      threshold: float?
-      release_time: float?
+    noise_suppression: "dict(enabled:bool?,method:list(speex|rnnoise)?,intensity:float?,suppress_level:int?)?"
+    gain: "dict(enabled:bool?,gain_db:float?)?"
+    equalizer: "dict(enabled:bool?,low_db:float?,mid_db:float?,high_db:float?)?"
+    expander: "dict(enabled:bool?,ratio:float?,threshold:float?,attack_time:float?,release_time:float?,output_gain:float?)?"
+    compressor: "dict(enabled:bool?,ratio:float?,threshold:float?,attack_time:float?,release_time:float?,output_gain:float?)?"
+    limiter: "dict(enabled:bool?,threshold:float?,release_time:float?)?"
 ports:
   "11400/tcp": null
 homeassistant: 2023.11.0
