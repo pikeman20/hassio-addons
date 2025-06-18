@@ -54,6 +54,7 @@ COPY rootfs /
 COPY audio_pipeline_manager.py /app/
 COPY pulse_audio_manager.py /app/
 COPY ha_mic_filter_service.py /app/
+COPY device_constants.py /app/
 
 # Set permissions
 RUN chmod a+x /etc/services.d/*/run
@@ -74,7 +75,7 @@ LABEL \
     io.hass.name="Real-time Microphone Filter" \
     io.hass.type="addon" \
     io.hass.arch="aarch64|amd64|armv7" \
-    io.hass.version="1.0.10"
+    io.hass.version="1.0.11"
 
 # Main command
 CMD [ "/run.sh" ]
