@@ -29,38 +29,37 @@ options:
   buffer_size_ms: 10
   auto_start: true
   log_level: "info"
-  audio_pipeline:
-    noise_suppression:
-      enabled: true
-      method: "rnnoise"
-      intensity: 0.8
-      suppress_level: -30
-    gain:
-      enabled: true
-      gain_db: 10.5
-    equalizer:
-      enabled: true
-      low_db: 10.0
-      mid_db: -20.0
-      high_db: 12.5
-    expander:
-      enabled: true
-      ratio: 4.0
-      threshold: -55.0
-      attack_time: 1.0
-      release_time: 75.0
-      output_gain: 2.0
-    compressor:
-      enabled: true
-      ratio: 4.0
-      threshold: -7.0
-      attack_time: 1.0
-      release_time: 75.0
-      output_gain: 0.0
-    limiter:
-      enabled: true
-      threshold: -0.2
-      release_time: 60.0
+  # Noise Suppression Settings
+  noise_suppression_enabled: true
+  noise_suppression_method: "rnnoise"
+  noise_suppression_intensity: 0.8
+  noise_suppression_suppress_level: -30
+  # Gain Settings
+  gain_enabled: true
+  gain_db: 10.5
+  # Equalizer Settings
+  equalizer_enabled: true
+  equalizer_low_db: 10.0
+  equalizer_mid_db: -20.0
+  equalizer_high_db: 12.5
+  # Expander Settings
+  expander_enabled: true
+  expander_ratio: 4.0
+  expander_threshold: -55.0
+  expander_attack_time: 1.0
+  expander_release_time: 75.0
+  expander_output_gain: 2.0
+  # Compressor Settings
+  compressor_enabled: true
+  compressor_ratio: 4.0
+  compressor_threshold: -7.0
+  compressor_attack_time: 1.0
+  compressor_release_time: 75.0
+  compressor_output_gain: 0.0
+  # Limiter Settings
+  limiter_enabled: true
+  limiter_threshold: -0.2
+  limiter_release_time: 60.0
 schema:
   input_device: str?
   output_device: str?
@@ -71,13 +70,37 @@ schema:
   buffer_size_ms: int?
   auto_start: bool?
   log_level: list(debug|info|warning|error)?
-  audio_pipeline:
-    noise_suppression: "dict(enabled:bool?,method:list(speex|rnnoise)?,intensity:float?,suppress_level:int?)?"
-    gain: "dict(enabled:bool?,gain_db:float?)?"
-    equalizer: "dict(enabled:bool?,low_db:float?,mid_db:float?,high_db:float?)?"
-    expander: "dict(enabled:bool?,ratio:float?,threshold:float?,attack_time:float?,release_time:float?,output_gain:float?)?"
-    compressor: "dict(enabled:bool?,ratio:float?,threshold:float?,attack_time:float?,release_time:float?,output_gain:float?)?"
-    limiter: "dict(enabled:bool?,threshold:float?,release_time:float?)?"
+  # Noise Suppression Schema
+  noise_suppression_enabled: bool?
+  noise_suppression_method: list(speex|rnnoise)?
+  noise_suppression_intensity: float?
+  noise_suppression_suppress_level: int?
+  # Gain Schema
+  gain_enabled: bool?
+  gain_db: float?
+  # Equalizer Schema
+  equalizer_enabled: bool?
+  equalizer_low_db: float?
+  equalizer_mid_db: float?
+  equalizer_high_db: float?
+  # Expander Schema
+  expander_enabled: bool?
+  expander_ratio: float?
+  expander_threshold: float?
+  expander_attack_time: float?
+  expander_release_time: float?
+  expander_output_gain: float?
+  # Compressor Schema
+  compressor_enabled: bool?
+  compressor_ratio: float?
+  compressor_threshold: float?
+  compressor_attack_time: float?
+  compressor_release_time: float?
+  compressor_output_gain: float?
+  # Limiter Schema
+  limiter_enabled: bool?
+  limiter_threshold: float?
+  limiter_release_time: float?
 ports:
   "11400/tcp": null
 homeassistant: 2023.11.0
