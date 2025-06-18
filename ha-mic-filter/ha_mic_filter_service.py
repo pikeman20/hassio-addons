@@ -246,11 +246,23 @@ class HAMicFilterService:
                 self.logger.error("Failed to connect to PulseAudio")
                 return False
             
-            # Create virtual microphone
+            # Check if virtual microphone already exists (created by PulseAudio config)
             virtual_mic_name = self.config.get('virtual_mic_name', 'HA_Filtered_Mic')
-            if not self.pulse_manager.create_virtual_microphone(virtual_mic_name):
-                self.logger.error("Failed to create virtual microphone")
-                return False
+            
+            # Refresh devices to check if virtual mic exists
+            self.pulse_manager.refresh_devices()
+            
+            # Check if virtual microphone already exists
+            virtual_mic_exists = self.pulse_manager.find_device_by_name('virtual_mic') is not None
+            virtual_sink_exists = self.pulse_manager.find_device_by_name('virtual_mic_sink') is not None
+            
+            if virtual_mic_exists and virtual_sink_exists:
+                self.logger.info("Virtual microphone already exists from PulseAudio config")
+            else:
+                self.logger.info("Creating virtual microphone...")
+                if not self.pulse_manager.create_virtual_microphone(virtual_mic_name):
+                    self.logger.error("Failed to create virtual microphone")
+                    return False
             
             # Setup audio pipeline
             if not self.setup_audio_pipeline():
