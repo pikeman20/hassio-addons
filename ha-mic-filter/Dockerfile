@@ -3,9 +3,6 @@ FROM $BUILD_FROM
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-dev \
-    python3-pip \
     pulseaudio \
     libpulse-dev \
     pulseaudio-utils \
@@ -25,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --no-cache-dir --break-system-packages \
     numpy \
     pyaudio \
     pulsectl \
