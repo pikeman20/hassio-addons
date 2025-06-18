@@ -1,13 +1,13 @@
 configuration:
-  input_device_id:
-    name: Input Device ID
-    description: The ID of the input audio device to capture from (null for default).
-  output_device_id:
-    name: Output Device ID
-    description: The ID of the output audio device to play to (null for default).
-  monitoring_device_id:
-    name: Monitoring Device ID
-    description: The ID of the monitoring audio device (null for default).
+  input_device:
+    name: Input Device
+    description: The input audio device to capture from (device name or description).
+  output_device:
+    name: Output Device
+    description: The output audio device to play to (device name or description).
+  monitoring_device:
+    name: Monitoring Device
+    description: The monitoring audio device (device name or description).
   virtual_mic_name:
     name: Virtual Microphone Name
     description: Name for the virtual microphone device created by the addon.

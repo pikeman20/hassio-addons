@@ -1,0 +1,41 @@
+# Build artifacts
+obs-plugin/build-linux/
+obs-plugin/build-win64/
+obs-plugin/build/
+*.o
+*.obj
+*.lib
+*.dll
+*.so
+*.dylib
+*.a
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Audio test files
+*.wav
+*.mp3
+*.flac
+*.ogg
+
+# Backup files
+*.bak
+*.backup

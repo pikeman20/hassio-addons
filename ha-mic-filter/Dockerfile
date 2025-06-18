@@ -1,5 +1,4 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.18
-ARG BUILD_ARCH=amd64
+ARG BUILD_FROM
 FROM $BUILD_FROM
 
 # Install system dependencies
@@ -63,11 +62,16 @@ RUN chmod a+x /etc/services.d/*/run
 RUN chmod a+x /etc/services.d/*/finish
 RUN chmod a+x /etc/cont-init.d/*
 
+# Copy and set permissions for run script
+COPY run.sh /
+RUN chmod a+x /run.sh
 
 # Labels
 LABEL \
     io.hass.name="Real-time Microphone Filter" \
-    io.hass.description="Real-time microphone filtering for Home Assistant Assist" \
-    io.hass.arch="amd64" \
     io.hass.type="addon" \
+    io.hass.arch="aarch64|amd64|armv7" \
     io.hass.version="1.0.0"
+
+# Main command
+CMD [ "/run.sh" ]
