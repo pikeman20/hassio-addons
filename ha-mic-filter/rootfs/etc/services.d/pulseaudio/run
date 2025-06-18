@@ -13,6 +13,7 @@ export PULSE_CONFIG_PATH=/tmp/pulse-config
 exec pulseaudio \
     --system \
     --disallow-exit \
+    --disallow-module-loading \
     --daemonize=false \
     --log-target=stderr \
     --log-level=info \

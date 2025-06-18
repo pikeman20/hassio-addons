@@ -57,7 +57,7 @@ load-module module-virtual-source source_name=virtual_mic source_properties=devi
 # Load loopback module for real-time processing
 load-module module-loopback
 
-# Load additional protocol modules
+# Load additional protocol modules for external access
 load-module module-native-protocol-unix auth-anonymous=1 socket=/tmp/pulse-socket
 load-module module-cli-protocol-unix
 

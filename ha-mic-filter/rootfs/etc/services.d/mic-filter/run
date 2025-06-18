@@ -13,10 +13,10 @@ sleep 3
 cd /app
 
 # Set Python path
-export PYTHONPATH="/app:$PYTHONPATH"
+export PYTHONPATH="/app:${PYTHONPATH:-}"
 
 # Set library path for obs-mic-filter
-export LD_LIBRARY_PATH="/app/lib:$LD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="/app/lib:${LD_LIBRARY_PATH:-}"
 
 # Set PulseAudio configuration path
 export PULSE_CONFIG_PATH=/tmp/pulse-config
