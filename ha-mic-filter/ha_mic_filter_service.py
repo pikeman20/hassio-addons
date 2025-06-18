@@ -110,15 +110,13 @@ class HAMicFilterService:
         
         # Read config from environment variables (set by bashio)
         config_mapping = {
-            'input_device': 'INPUT_DEVICE',
-            'output_device': 'OUTPUT_DEVICE',
-            'monitoring_device': 'MONITORING_DEVICE',
             'virtual_mic_name': 'VIRTUAL_MIC_NAME',
             'sample_rate': 'SAMPLE_RATE',
             'channels': 'CHANNELS',
             'buffer_size_ms': 'BUFFER_SIZE_MS',
             'auto_start': 'AUTO_START',
-            'log_level': 'LOG_LEVEL'
+            'log_level': 'LOG_LEVEL',
+            'monitor_to_speakers': 'MONITOR_TO_SPEAKERS'
         }
         
         for key, env_var in config_mapping.items():
@@ -130,7 +128,7 @@ class HAMicFilterService:
                         config[key] = int(value)
                     except ValueError:
                         pass
-                elif key in ['auto_start']:
+                elif key in ['auto_start', 'monitor_to_speakers']:
                     config[key] = value.lower() in ('true', '1', 'yes', 'on')
                 else:
                     config[key] = value
@@ -402,15 +400,10 @@ class HAMicFilterService:
             return self.audio_pipeline.apply_filters(audio_data)
         return audio_data
     
-    def start_streaming(self, input_device=None, output_device=None, monitoring_device=None) -> bool:
+    def start_streaming(self) -> bool:
         """
-        Start audio streaming
+        Start audio streaming using Home Assistant's default audio devices
         
-        Args:
-            input_device: Input device name, description, or ID
-            output_device: Output device name, description, or ID
-            monitoring_device: Optional monitoring device name, description, or ID
-            
         Returns:
             True if streaming started successfully, False otherwise
         """
@@ -418,34 +411,22 @@ class HAMicFilterService:
             self.logger.warning("Audio streaming already active")
             return False
         
-        # Use configured devices if not specified
-        if input_device is None:
-            input_device = self.config.get('input_device')
-        if output_device is None:
-            output_device = self.config.get('output_device')
-        if monitoring_device is None:
-            monitoring_device = self.config.get('monitoring_device')
-        
-        if input_device is None or output_device is None:
-            self.logger.error("Input and output devices must be specified")
-            return False
-        
-        # Start streaming
+        # Start streaming with HA defaults
         success = self.pulse_manager.start_audio_streaming(
-            input_device_identifier=input_device,
-            output_device_identifier=output_device,
-            monitoring_device_identifier=monitoring_device,
             audio_processor_callback=self.audio_processor_callback,
             sample_rate=self.config.get('sample_rate', 48000),
             channels=self.config.get('channels', 1),
-            frames_per_buffer=480
+            frames_per_buffer=480,
+            monitor_to_speakers=self.config.get('monitor_to_speakers', False)
         )
         
         if success:
             self.is_streaming = True
-            self.current_input_device = input_device
-            self.current_output_device = output_device
-            self.current_monitoring_device = monitoring_device
+            # Get the devices that were actually used
+            ha_input, ha_output = self.pulse_manager.get_ha_default_devices()
+            self.current_input_device = ha_input
+            self.current_output_device = self.pulse_manager.virtual_sink_name
+            self.current_monitoring_device = ha_output if self.config.get('monitor_to_speakers', False) else None
             self.logger.info("Audio streaming started")
         
         return success

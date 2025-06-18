@@ -1,13 +1,4 @@
 configuration:
-  input_device:
-    name: Input Device
-    description: The input audio device to capture from (device name or description).
-  output_device:
-    name: Output Device
-    description: The output audio device to play to (device name or description).
-  monitoring_device:
-    name: Monitoring Device
-    description: The monitoring audio device (device name or description).
   virtual_mic_name:
     name: Virtual Microphone Name
     description: Name for the virtual microphone device created by the addon.
@@ -26,6 +17,9 @@ configuration:
   log_level:
     name: Log Level
     description: Logging level for the addon (debug, info, warning, error).
+  monitor_to_speakers:
+    name: Monitor to Speakers
+    description: Enable monitoring of processed audio through speakers for real-time feedback. Uses Home Assistant's default speaker output.
   audio_pipeline:
     name: Audio Processing Pipeline
     description: Configuration for the audio processing pipeline.

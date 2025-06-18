@@ -1,6 +1,6 @@
 ---
 name: Real-time Microphone Filter
-version: 1.0.0
+version: 1.0.2
 slug: ha-mic-filters
 description: Real-time microphone filtering for Home Assistant Assist with virtual audio device support
 url: https://github.com/pikeman20/hassio-addons
@@ -20,15 +20,13 @@ map:
   - share:rw
   - config:rw
 options:
-  input_device: ""
-  output_device: ""
-  monitoring_device: ""
   virtual_mic_name: HA_Filtered_Mic
   sample_rate: 48000
   channels: 1
   buffer_size_ms: 10
   auto_start: true
   log_level: "info"
+  monitor_to_speakers: false
   # Noise Suppression Settings
   noise_suppression_enabled: true
   noise_suppression_method: "rnnoise"
@@ -61,15 +59,13 @@ options:
   limiter_threshold: -0.2
   limiter_release_time: 60.0
 schema:
-  input_device: str?
-  output_device: str?
-  monitoring_device: str?
   virtual_mic_name: str?
   sample_rate: int?
   channels: int?
   buffer_size_ms: int?
   auto_start: bool?
   log_level: list(debug|info|warning|error)?
+  monitor_to_speakers: bool?
   # Noise Suppression Schema
   noise_suppression_enabled: bool?
   noise_suppression_method: list(speex|rnnoise)?

@@ -18,6 +18,7 @@ import time
 import threading
 import logging
 import json
+import os
 from typing import Dict, List, Optional, Tuple, Any
 import pulsectl
 import numpy as np
@@ -197,6 +198,53 @@ class PulseAudioManager:
         
         return None
     
+    def get_ha_default_devices(self) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Get Home Assistant's default audio input and output devices from PulseAudio
+        
+        When 'audio: true' is set in config.yaml, HA maps the audio system into the container.
+        We can get the default devices directly from PulseAudio server info.
+        
+        Returns:
+            Tuple of (default_input_device_name, default_output_device_name)
+        """
+        try:
+            default_input = None
+            default_output = None
+            
+            if self.pulse:
+                try:
+                    # Get server information which contains default devices
+                    server_info = self.pulse.server_info()
+                    
+                    if server_info.default_source_name:
+                        default_input = server_info.default_source_name
+                        self.logger.info(f"Found HA default input: {default_input}")
+                    
+                    if server_info.default_sink_name:
+                        default_output = server_info.default_sink_name
+                        self.logger.info(f"Found HA default output: {default_output}")
+                    
+                    # Also log available devices for debugging
+                    self.logger.debug("Available sources (inputs):")
+                    for source in self.pulse.source_list():
+                        self.logger.debug(f"  - {source.name}: {source.description}")
+                    
+                    self.logger.debug("Available sinks (outputs):")
+                    for sink in self.pulse.sink_list():
+                        self.logger.debug(f"  - {sink.name}: {sink.description}")
+                        
+                except Exception as e:
+                    self.logger.warning(f"Could not get PulseAudio default devices: {e}")
+            else:
+                self.logger.warning("PulseAudio not connected - cannot get default devices")
+            
+            return default_input, default_output
+            
+        except Exception as e:
+            self.logger.error(f"Error getting HA default devices: {e}")
+            return None, None
+    
     def get_device_by_name_or_id(self, device_identifier) -> Optional[AudioDevice]:
         """
         Get device by name, description, or ID
@@ -316,21 +364,18 @@ class PulseAudioManager:
         except Exception as e:
             self.logger.error(f"Error removing virtual microphone: {e}")
     
-    def start_audio_streaming(self, input_device_identifier, output_device_identifier,
-                            monitoring_device_identifier=None,
-                            audio_processor_callback=None, sample_rate: int = 48000,
-                            channels: int = 1, frames_per_buffer: int = 480) -> bool:
+    def start_audio_streaming(self, audio_processor_callback=None, sample_rate: int = 48000,
+                            channels: int = 1, frames_per_buffer: int = 480,
+                            monitor_to_speakers: bool = False) -> bool:
         """
-        Start real-time audio streaming
+        Start real-time audio streaming using Home Assistant's default audio devices
         
         Args:
-            input_device_identifier: Input device name, description, or ID
-            output_device_identifier: Output device name, description, or ID (virtual microphone)
-            monitoring_device_identifier: Optional monitoring device name, description, or ID
             audio_processor_callback: Callback function for audio processing
             sample_rate: Sample rate in Hz
             channels: Number of channels
             frames_per_buffer: Frames per buffer
+            monitor_to_speakers: Whether to output processed audio to speakers for monitoring
             
         Returns:
             True if streaming started successfully, False otherwise
@@ -340,31 +385,48 @@ class PulseAudioManager:
             return False
         
         try:
-            # Get device objects by name or ID
-            input_device = self.get_device_by_name_or_id(input_device_identifier)
-            output_device = self.get_device_by_name_or_id(output_device_identifier)
+            # Get HA default devices
+            ha_default_input, ha_default_output = self.get_ha_default_devices()
             
+            if not ha_default_input:
+                self.logger.error("No default input device available from Home Assistant")
+                return False
+            
+            # Find input device
+            input_device = self.find_device_by_name(ha_default_input)
             if not input_device or not input_device.is_input:
-                self.logger.error(f"Invalid input device: {input_device_identifier}")
+                self.logger.error(f"Invalid or not found HA default input device: {ha_default_input}")
                 return False
             
-            if not output_device or not output_device.is_output:
-                self.logger.error(f"Invalid output device: {output_device_identifier}")
+            # Find virtual microphone sink for output
+            virtual_output_device = self.find_device_by_name(self.virtual_sink_name)
+            if not virtual_output_device:
+                self.logger.error(f"Virtual microphone sink not found: {self.virtual_sink_name}")
                 return False
             
-            self.logger.info(f"Starting audio streaming: {input_device.description} -> {output_device.description}")
+            self.logger.info(f"Starting audio streaming: {input_device.description} -> Virtual Microphone")
             
             # Configure streaming parameters
             self.sample_rate = sample_rate
             self.channels = channels
             self.frames_per_buffer = frames_per_buffer
             self.audio_processor_callback = audio_processor_callback
-            self.monitoring_device_identifier = monitoring_device_identifier
+            self.monitor_to_speakers = monitor_to_speakers
+            
+            # Get speaker device for monitoring if enabled
+            self.speaker_device = None
+            if monitor_to_speakers and ha_default_output:
+                self.speaker_device = self.find_device_by_name(ha_default_output)
+                if self.speaker_device and self.speaker_device.is_output:
+                    self.logger.info(f"Monitor output enabled to: {self.speaker_device.description}")
+                else:
+                    self.logger.warning(f"Could not find speaker device for monitoring: {ha_default_output}")
+                    self.speaker_device = None
             
             # Start streaming thread
             self.is_streaming = True
-            self.stream_thread = threading.Thread(target=self._streaming_worker, 
-                                                 args=(input_device, output_device))
+            self.stream_thread = threading.Thread(target=self._streaming_worker,
+                                                 args=(input_device, virtual_output_device))
             self.stream_thread.daemon = True
             self.stream_thread.start()
             
@@ -403,66 +465,102 @@ class PulseAudioManager:
     
     def _streaming_worker(self, input_device: AudioDevice, output_device: AudioDevice):
         """Worker thread for audio streaming"""
+        speaker_stream = None
         try:
             # Create audio streams using sounddevice
-            with sd.InputStream(
+            stream_contexts = []
+            
+            # Always create input and virtual microphone output streams
+            input_stream = sd.InputStream(
                 device=input_device.name,
                 channels=self.channels,
                 samplerate=self.sample_rate,
                 blocksize=self.frames_per_buffer,
                 dtype=np.float32
-            ) as input_stream, \
-            sd.OutputStream(
+            )
+            stream_contexts.append(input_stream)
+            
+            output_stream = sd.OutputStream(
                 device=output_device.name,
                 channels=self.channels,
                 samplerate=self.sample_rate,
                 blocksize=self.frames_per_buffer,
                 dtype=np.float32
-            ) as output_stream:
-                
-                self.input_stream = input_stream
-                self.output_stream = output_stream
-                
-                self.logger.info("Audio streams created, starting processing loop...")
-                
-                while self.is_streaming:
-                    try:
-                        # Read audio from input
-                        audio_data, overflowed = input_stream.read(self.frames_per_buffer)
+            )
+            stream_contexts.append(output_stream)
+            
+            # Create speaker monitoring stream if enabled
+            if self.monitor_to_speakers and hasattr(self, 'speaker_device') and self.speaker_device:
+                speaker_stream = sd.OutputStream(
+                    device=self.speaker_device.name,
+                    channels=self.channels,
+                    samplerate=self.sample_rate,
+                    blocksize=self.frames_per_buffer,
+                    dtype=np.float32
+                )
+                stream_contexts.append(speaker_stream)
+            
+            # Start all streams
+            for stream in stream_contexts:
+                stream.start()
+            
+            self.input_stream = input_stream
+            self.output_stream = output_stream
+            
+            self.logger.info("Audio streams created, starting processing loop...")
+            
+            while self.is_streaming:
+                try:
+                    # Read audio from input
+                    audio_data, overflowed = input_stream.read(self.frames_per_buffer)
+                    
+                    if overflowed:
+                        self.logger.warning("Input overflow detected")
+                    
+                    # Process audio through the pipeline
+                    if self.audio_processor_callback:
+                        processed_audio = self.audio_processor_callback(audio_data.flatten())
                         
-                        if overflowed:
-                            self.logger.warning("Input overflow detected")
-                        
-                        # Process audio through the pipeline
-                        if self.audio_processor_callback:
-                            processed_audio = self.audio_processor_callback(audio_data.flatten())
-                            
-                            # Reshape if needed
-                            if len(processed_audio.shape) == 1 and self.channels > 1:
-                                processed_audio = processed_audio.reshape(-1, self.channels)
-                            elif len(processed_audio.shape) == 1:
-                                processed_audio = processed_audio.reshape(-1, 1)
-                        else:
-                            processed_audio = audio_data
-                        
-                        # Write to output (virtual microphone)
-                        output_stream.write(processed_audio)
-                        
-                        # Optional monitoring output
-                        if self.monitoring_device_identifier is not None:
-                            monitoring_device = self.get_device_by_name_or_id(self.monitoring_device_identifier)
-                            if monitoring_device and monitoring_device.is_output:
-                                # TODO: Implement monitoring output
-                                pass
-                        
-                    except Exception as e:
-                        if self.is_streaming:  # Only log if we're still supposed to be streaming
-                            self.logger.error(f"Error in streaming loop: {e}")
-                        break
-                
+                        # Reshape if needed
+                        if len(processed_audio.shape) == 1 and self.channels > 1:
+                            processed_audio = processed_audio.reshape(-1, self.channels)
+                        elif len(processed_audio.shape) == 1:
+                            processed_audio = processed_audio.reshape(-1, 1)
+                    else:
+                        processed_audio = audio_data
+                    
+                    # Write to output (virtual microphone)
+                    output_stream.write(processed_audio)
+                    
+                    # Write to speakers for monitoring if enabled
+                    if speaker_stream is not None:
+                        try:
+                            speaker_stream.write(processed_audio)
+                        except Exception as e:
+                            self.logger.warning(f"Error writing to speaker monitoring: {e}")
+                    
+                except Exception as e:
+                    if self.is_streaming:  # Only log if we're still supposed to be streaming
+                        self.logger.error(f"Error in streaming loop: {e}")
+                    break
+            
         except Exception as e:
             self.logger.error(f"Error in streaming worker: {e}")
         finally:
+            # Clean up streams
+            try:
+                if hasattr(self, 'input_stream') and self.input_stream:
+                    self.input_stream.stop()
+                    self.input_stream.close()
+                if hasattr(self, 'output_stream') and self.output_stream:
+                    self.output_stream.stop()
+                    self.output_stream.close()
+                if speaker_stream:
+                    speaker_stream.stop()
+                    speaker_stream.close()
+            except Exception as e:
+                self.logger.warning(f"Error cleaning up streams: {e}")
+            
             self.is_streaming = False
             self.logger.info("Streaming worker finished")
     
