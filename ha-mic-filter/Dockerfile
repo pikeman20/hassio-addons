@@ -2,16 +2,16 @@ ARG BUILD_FROM
 FROM $BUILD_FROM
 
 # Install system dependencies
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     python3 \
     python3-dev \
-    py3-pip \
+    python3-pip \
     pulseaudio \
-    pulseaudio-dev \
+    libpulse-dev \
     pulseaudio-utils \
     alsa-utils \
-    alsa-lib-dev \
-    portaudio-dev \
+    libasound2-dev \
+    portaudio19-dev \
     gcc \
     g++ \
     make \
@@ -21,7 +21,8 @@ RUN apk add --no-cache \
     bash \
     jq \
     nodejs \
-    npm
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir \
