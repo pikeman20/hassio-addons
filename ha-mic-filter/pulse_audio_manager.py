@@ -23,6 +23,12 @@ from typing import Dict, List, Optional, Tuple, Any
 import pulsectl
 import numpy as np
 import sounddevice as sd
+from device_constants import (
+    VIRTUAL_MIC_SINK_NAME,
+    VIRTUAL_MIC_SOURCE_NAME,
+    DEFAULT_VIRTUAL_MIC_DESCRIPTION,
+    DEFAULT_VIRTUAL_SINK_DESCRIPTION
+)
 
 
 class AudioDevice:
@@ -63,8 +69,8 @@ class PulseAudioManager:
         """Initialize PulseAudio manager"""
         self.logger = logging.getLogger(__name__)
         self.pulse = None
-        self.virtual_sink_name = "virtual_mic_sink"
-        self.virtual_source_name = "virtual_mic"
+        self.virtual_sink_name = VIRTUAL_MIC_SINK_NAME
+        self.virtual_source_name = VIRTUAL_MIC_SOURCE_NAME
         self.virtual_sink_module_id = None
         self.virtual_source_module_id = None
         self.loopback_module_id = None

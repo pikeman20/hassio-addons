@@ -28,6 +28,12 @@ import numpy as np
 # Import our modules
 from audio_pipeline_manager import AudioPipelineManager, FilterType, NoiseSuppressionMethod
 from pulse_audio_manager import PulseAudioManager, AudioDevice
+from device_constants import (
+    VIRTUAL_MIC_SINK_NAME,
+    VIRTUAL_MIC_SOURCE_NAME,
+    DEFAULT_VIRTUAL_MIC_DESCRIPTION,
+    DEFAULT_VIRTUAL_SINK_DESCRIPTION
+)
 
 
 class HAMicFilterService:
@@ -246,20 +252,26 @@ class HAMicFilterService:
                 self.logger.error("Failed to connect to PulseAudio")
                 return False
             
-            # Check if virtual microphone already exists (created by PulseAudio config)
-            virtual_mic_name = self.config.get('virtual_mic_name', 'HA_Filtered_Mic')
+            # Use constants for device names
+            self.pulse_manager.virtual_sink_name = VIRTUAL_MIC_SINK_NAME
+            self.pulse_manager.virtual_source_name = VIRTUAL_MIC_SOURCE_NAME
             
-            # Refresh devices to check if virtual mic exists
+            # Wait a moment for PulseAudio devices to be fully ready
+            time.sleep(1)
+            
+            # Refresh devices to check if virtual devices exist
             self.pulse_manager.refresh_devices()
             
-            # Check if virtual microphone already exists
-            virtual_mic_exists = self.pulse_manager.find_device_by_name('virtual_mic') is not None
-            virtual_sink_exists = self.pulse_manager.find_device_by_name('virtual_mic_sink') is not None
+            # Check if virtual microphone already exists (created by PulseAudio config)
+            virtual_mic_exists = self.pulse_manager.find_device_by_name(VIRTUAL_MIC_SOURCE_NAME) is not None
+            virtual_sink_exists = self.pulse_manager.find_device_by_name(VIRTUAL_MIC_SINK_NAME) is not None
             
             if virtual_mic_exists and virtual_sink_exists:
-                self.logger.info("Virtual microphone already exists from PulseAudio config")
+                self.logger.info(f"Virtual microphone devices already exist: sink='{VIRTUAL_MIC_SINK_NAME}', source='{VIRTUAL_MIC_SOURCE_NAME}'")
             else:
-                self.logger.info("Creating virtual microphone...")
+                # Virtual devices not found, try to create them
+                virtual_mic_name = self.config.get('virtual_mic_name', DEFAULT_VIRTUAL_MIC_DESCRIPTION)
+                self.logger.info(f"Creating virtual microphone with name: {virtual_mic_name}")
                 if not self.pulse_manager.create_virtual_microphone(virtual_mic_name):
                     self.logger.error("Failed to create virtual microphone")
                     return False

@@ -9,8 +9,11 @@ bashio::log.info "Setting up PulseAudio for virtual microphone..."
 # Create PulseAudio configuration directory in writable location
 mkdir -p /tmp/pulse-config
 
+# Get virtual microphone name from Home Assistant config
+VIRTUAL_MIC_NAME="${VIRTUAL_MIC_NAME:-HA_Filtered_Mic}"
+
 # Create PulseAudio system configuration (minimal to avoid conflicts)
-cat > /tmp/pulse-config/system.pa << 'EOF'
+cat > /tmp/pulse-config/system.pa << EOF
 #!/usr/bin/pulseaudio -nF
 
 # Essential modules only to avoid duplicates
@@ -26,11 +29,11 @@ load-module module-stream-restore
 .fail
 .endif
 
-# Load null sink for virtual microphone
+# Load null sink for virtual microphone (using configurable name)
 load-module module-null-sink sink_name=virtual_mic_sink sink_properties=device.description="Virtual_Microphone_Sink"
 
 # Load virtual source (microphone) from the null sink monitor
-load-module module-virtual-source source_name=virtual_mic source_properties=device.description="HA_Filtered_Microphone" master=virtual_mic_sink.monitor
+load-module module-virtual-source source_name=virtual_mic source_properties=device.description="${VIRTUAL_MIC_NAME}" master=virtual_mic_sink.monitor
 
 # Load loopback module for real-time processing
 load-module module-loopback
