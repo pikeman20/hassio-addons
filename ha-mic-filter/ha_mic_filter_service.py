@@ -114,6 +114,18 @@ class HAMicFilterService:
         """Load Home Assistant addon configuration"""
         config = {}
         
+        # Try to read directly from Home Assistant config first
+        try:
+            import subprocess
+            result = subprocess.run(['bashio::config', 'monitor_to_speakers'],
+                                  capture_output=True, text=True, shell=True)
+            if result.returncode == 0 and result.stdout.strip():
+                monitor_value = result.stdout.strip().lower()
+                config['monitor_to_speakers'] = monitor_value in ('true', '1', 'yes', 'on')
+                self.logger.info(f"DEBUG: Read monitor_to_speakers directly from HA config: {config['monitor_to_speakers']}")
+        except Exception as e:
+            self.logger.warning(f"Could not read HA config directly: {e}")
+        
         # Read config from environment variables (set by bashio)
         config_mapping = {
             'virtual_mic_name': 'VIRTUAL_MIC_NAME',
@@ -126,6 +138,10 @@ class HAMicFilterService:
         }
         
         for key, env_var in config_mapping.items():
+            # Skip if we already got it from direct HA config read
+            if key == 'monitor_to_speakers' and 'monitor_to_speakers' in config:
+                continue
+                
             value = os.getenv(env_var)
             if value is not None and value != 'null':
                 # Convert types
@@ -449,7 +465,7 @@ class HAMicFilterService:
             audio_processor_callback=self.audio_processor_callback,
             sample_rate=self.config.get('sample_rate', 48000),
             channels=self.config.get('channels', 1),
-            frames_per_buffer=480,
+            frames_per_buffer=1024,  # Increased buffer size to reduce underruns
             monitor_to_speakers=monitor_to_speakers
         )
         
