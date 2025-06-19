@@ -8,10 +8,14 @@
 bashio::log.info "Waiting for PulseAudio to be ready..."
 sleep 5
 
-# Check if PulseAudio is running
-if ! pgrep pulseaudio > /dev/null; then
-    bashio::log.error "PulseAudio is not running"
-    exit 1
+# Check if PulseAudio is accessible (not if it's running as a process)
+# In Home Assistant addons, PulseAudio is provided by the host system
+bashio::log.info "Checking PulseAudio connectivity..."
+if pactl info >/dev/null 2>&1; then
+    bashio::log.info "PulseAudio is accessible"
+else
+    bashio::log.warning "PulseAudio not accessible via default connection, but continuing anyway"
+    bashio::log.info "Service will attempt to use Home Assistant's audio system"
 fi
 
 # Start the main service

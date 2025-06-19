@@ -403,14 +403,18 @@ class HAMicFilterService:
                     output_gain=comp_config.get('output_gain', 0.0)
                 )
             
-            # Add limiter
+            # Add limiter (check if supported first)
             lim_config = pipeline_config.get('limiter', {})
             if lim_config.get('enabled', True):
-                self.audio_pipeline.add_filter(
-                    FilterType.LIMITER,
-                    threshold=lim_config.get('threshold', -0.2),
-                    release_time=lim_config.get('release_time', 60.0)
-                )
+                # Check if limiter is supported by the library
+                if self.audio_pipeline.library.obs_pipeline_is_filter_supported(FilterType.LIMITER.value):
+                    self.audio_pipeline.add_filter(
+                        FilterType.LIMITER,
+                        threshold=lim_config.get('threshold', -0.2),
+                        release_time=lim_config.get('release_time', 60.0)
+                    )
+                else:
+                    self.logger.warning("LIMITER filter not supported by library, skipping")
             
             self.logger.info("Audio pipeline setup completed")
             return True

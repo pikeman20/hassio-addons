@@ -102,6 +102,8 @@ class PulseAudioManager:
             for socket_path in socket_paths:
                 if os.path.exists(socket_path):
                     os.environ['PULSE_SERVER'] = f'unix:{socket_path}'
+                    self.logger.info(f"TODO: set the socket path to {socket_path} for all related PulseAudio operations")
+                    self.logger.info("TODO: Maybe other related command mounted by Home Assistant also have to be updated")
                     self.logger.info(f"Using PulseAudio socket: {socket_path}")
                     break
             else:
@@ -278,6 +280,16 @@ class PulseAudioManager:
                         
                 except Exception as e:
                     self.logger.warning(f"Could not get PulseAudio default devices: {e}")
+                    # Try to reconnect if connection failed
+                    try:
+                        self.connect()
+                        if self.pulse:
+                            server_info = self.pulse.server_info()
+                            default_input = server_info.default_source_name
+                            default_output = server_info.default_sink_name
+                            self.logger.info("Reconnection successful")
+                    except Exception as reconnect_e:
+                        self.logger.error(f"Reconnection failed: {reconnect_e}")
             else:
                 self.logger.warning("PulseAudio not connected - cannot get default devices")
             
