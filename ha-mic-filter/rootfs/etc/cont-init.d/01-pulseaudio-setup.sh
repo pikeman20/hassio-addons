@@ -10,7 +10,7 @@ bashio::log.info "Setting up virtual microphone devices..."
 VIRTUAL_MIC_NAME="${VIRTUAL_MIC_NAME:-HA_Filtered_Mic}"
 
 # Set up PulseAudio environment for Home Assistant
-export PULSE_SERVER=unix:/var/run/pulse/native
+export PULSE_SERVER=unix:/run/audio/pulse.sock
 
 # Wait for Home Assistant's PulseAudio socket to be available
 sleep 5
@@ -20,22 +20,24 @@ check_pulseaudio() {
     pactl info >/dev/null 2>&1
 }
 
-# Check if PulseAudio socket exists
-if [ ! -S "/var/run/pulse/native" ]; then
-    bashio::log.warning "PulseAudio socket not found at /var/run/pulse/native"
-    bashio::log.info "Checking alternative locations..."
+# Check if Home Assistant PulseAudio socket exists
+if [ ! -S "/run/audio/pulse.sock" ]; then
+    bashio::log.warning "Home Assistant PulseAudio socket not found at /run/audio/pulse.sock"
+    bashio::log.info "Checking fallback locations..."
     
-    # Check alternative socket locations
-    if [ -S "/run/pulse/native" ]; then
+    # Check alternative socket locations as fallback
+    if [ -S "/var/run/pulse/native" ]; then
+        export PULSE_SERVER=unix:/var/run/pulse/native
+        bashio::log.info "Using fallback PulseAudio socket at /var/run/pulse/native"
+    elif [ -S "/run/pulse/native" ]; then
         export PULSE_SERVER=unix:/run/pulse/native
-        bashio::log.info "Using PulseAudio socket at /run/pulse/native"
-    elif [ -S "/tmp/pulse-socket" ]; then
-        export PULSE_SERVER=unix:/tmp/pulse-socket
-        bashio::log.info "Using PulseAudio socket at /tmp/pulse-socket"
+        bashio::log.info "Using fallback PulseAudio socket at /run/pulse/native"
     else
         bashio::log.warning "No PulseAudio socket found, will try default connection"
         unset PULSE_SERVER
     fi
+else
+    bashio::log.info "Using Home Assistant PulseAudio socket at /run/audio/pulse.sock"
 fi
 
 # Wait for PulseAudio to be ready (up to 30 seconds)

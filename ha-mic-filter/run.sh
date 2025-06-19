@@ -4,18 +4,20 @@
 # Main execution script
 # ==============================================================================
 
-# Wait for PulseAudio to be ready (but not wait for it to stop)
-bashio::log.info "Waiting for PulseAudio to be ready..."
+# Set up Home Assistant PulseAudio environment
+export PULSE_SERVER=unix:/run/audio/pulse.sock
+
+# Wait for PulseAudio to be ready
+bashio::log.info "Waiting for Home Assistant PulseAudio to be ready..."
 sleep 5
 
-# Check if PulseAudio is accessible (not if it's running as a process)
-# In Home Assistant addons, PulseAudio is provided by the host system
-bashio::log.info "Checking PulseAudio connectivity..."
+# Check if PulseAudio is accessible via the Home Assistant socket
+bashio::log.info "Checking Home Assistant PulseAudio connectivity..."
 if pactl info >/dev/null 2>&1; then
-    bashio::log.info "PulseAudio is accessible"
+    bashio::log.info "Home Assistant PulseAudio is accessible"
 else
-    bashio::log.warning "PulseAudio not accessible via default connection, but continuing anyway"
-    bashio::log.info "Service will attempt to use Home Assistant's audio system"
+    bashio::log.warning "PulseAudio not accessible via Home Assistant socket, but continuing anyway"
+    bashio::log.info "Service will attempt to use fallback connection methods"
 fi
 
 # Start the main service

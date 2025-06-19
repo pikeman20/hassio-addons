@@ -9,18 +9,25 @@ set +u
 
 bashio::log.info "Starting Real-time Microphone Filter service..."
 
-# Set up PulseAudio environment
-export PULSE_SERVER=unix:/var/run/pulse/native
+# Set up PulseAudio environment for Home Assistant
+export PULSE_SERVER=unix:/run/audio/pulse.sock
 
-# Check for alternative socket locations if needed
-if [ ! -S "/var/run/pulse/native" ]; then
-    if [ -S "/run/pulse/native" ]; then
+# Check if Home Assistant socket exists, fallback if needed
+if [ ! -S "/run/audio/pulse.sock" ]; then
+    bashio::log.warning "Home Assistant PulseAudio socket not found at /run/audio/pulse.sock"
+    # Check for alternative socket locations
+    if [ -S "/var/run/pulse/native" ]; then
+        export PULSE_SERVER=unix:/var/run/pulse/native
+        bashio::log.info "Using fallback PulseAudio socket: /var/run/pulse/native"
+    elif [ -S "/run/pulse/native" ]; then
         export PULSE_SERVER=unix:/run/pulse/native
-    elif [ -S "/tmp/pulse-socket" ]; then
-        export PULSE_SERVER=unix:/tmp/pulse-socket
+        bashio::log.info "Using fallback PulseAudio socket: /run/pulse/native"
     else
         unset PULSE_SERVER
+        bashio::log.warning "No PulseAudio socket found, using default connection"
     fi
+else
+    bashio::log.info "Using Home Assistant PulseAudio socket: /run/audio/pulse.sock"
 fi
 
 # Wait for virtual devices to be created by init script

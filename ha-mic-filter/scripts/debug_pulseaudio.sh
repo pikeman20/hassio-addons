@@ -10,6 +10,10 @@ echo "XDG_RUNTIME_DIR: ${XDG_RUNTIME_DIR:-not set}"
 echo
 
 echo "2. Checking socket locations:"
+echo "Checking Home Assistant audio socket /run/audio/:"
+ls -la /run/audio/ 2>/dev/null || echo "Directory not found"
+echo
+
 echo "Checking /var/run/pulse/:"
 ls -la /var/run/pulse/ 2>/dev/null || echo "Directory not found"
 echo
@@ -33,7 +37,8 @@ pactl info 2>&1 | head -5 || echo "Failed to connect"
 echo
 
 echo "5. Testing with different socket paths:"
-for socket in "/var/run/pulse/native" "/run/pulse/native" "/tmp/pulse-socket"; do
+# Test Home Assistant socket first
+for socket in "/run/audio/pulse.sock" "/var/run/pulse/native" "/run/pulse/native" "/tmp/pulse-socket"; do
     if [ -S "$socket" ]; then
         echo "Testing socket: $socket"
         PULSE_SERVER="unix:$socket" pactl info 2>&1 | head -3 || echo "Failed"
