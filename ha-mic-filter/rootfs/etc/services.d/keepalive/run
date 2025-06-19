@@ -1,0 +1,13 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: Real-time Microphone Filter
+# Keep the container alive for debugging even if other services fail
+# ==============================================================================
+
+bashio::log.info "Starting keepalive service to maintain container for debugging..."
+
+# Run infinite loop to keep container alive
+while true; do
+    sleep 60
+    bashio::log.debug "Container keepalive - services can be debugged"
+done

@@ -1,10 +1,15 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Home Assistant Community Add-on: Real-time Microphone Filter
-# Take down the S6 supervision tree when mic filter fails
+# Don't stop addon when mic filter stops - keep it running for debugging
 # ==============================================================================
 
 bashio::log.info "Microphone Filter service stopped"
 if [[ "$1" -ne 0 ]] && [[ "$1" -ne 256 ]]; then
   bashio::log.warning "Microphone Filter crashed with exit code ${1}"
+  bashio::log.info "Addon will keep running for debugging - you can bash into container"
+else
+  bashio::log.info "Service stopped normally"
 fi
+
+# Don't stop the addon - keep it running for debugging
