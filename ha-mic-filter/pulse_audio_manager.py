@@ -449,6 +449,14 @@ class PulseAudioManager:
             
             self.logger.info(f"Starting audio streaming: {input_device.description} -> Virtual Microphone")
             
+            # Configure PulseAudio environment for specific device routing
+            # Set PULSE_SOURCE and PULSE_SINK to route audio correctly
+            import os
+            os.environ['PULSE_SOURCE'] = input_device.name
+            os.environ['PULSE_SINK'] = virtual_output_device.name
+            self.logger.info(f"Set PULSE_SOURCE={input_device.name}")
+            self.logger.info(f"Set PULSE_SINK={virtual_output_device.name}")
+            
             # Configure streaming parameters
             self.sample_rate = sample_rate
             self.channels = channels
@@ -521,39 +529,32 @@ class PulseAudioManager:
             # Get list of sounddevice devices
             devices = sd.query_devices()
             
-            # Search by description first (most reliable)
+            # In Home Assistant addon environment, sounddevice typically only sees
+            # generic pulse/default devices. We need to use the pulse device and
+            # let PulseAudio handle the routing to specific devices.
+            
+            # Look for pulse device first (most reliable in HA environment)
             for i, device in enumerate(devices):
-                if is_input and device['max_input_channels'] > 0:
-                    if audio_device.description in device['name'] or device['name'] in audio_device.description:
-                        return i
-                elif not is_input and device['max_output_channels'] > 0:
-                    if audio_device.description in device['name'] or device['name'] in audio_device.description:
+                if device['name'].lower() == 'pulse':
+                    if (is_input and device['max_input_channels'] > 0) or (not is_input and device['max_output_channels'] > 0):
+                        self.logger.info(f"Using pulse device for {audio_device.name}: {device['name']}")
                         return i
             
-            # Search by partial name match
+            # Fallback to default device
             for i, device in enumerate(devices):
-                if is_input and device['max_input_channels'] > 0:
-                    # Try to match parts of the PulseAudio name with sounddevice name
-                    if any(part in device['name'].lower() for part in audio_device.name.lower().split('_') if len(part) > 3):
-                        return i
-                elif not is_input and device['max_output_channels'] > 0:
-                    if any(part in device['name'].lower() for part in audio_device.name.lower().split('_') if len(part) > 3):
+                if device['name'].lower() == 'default':
+                    if (is_input and device['max_input_channels'] > 0) or (not is_input and device['max_output_channels'] > 0):
+                        self.logger.info(f"Using default device for {audio_device.name}: {device['name']}")
                         return i
             
-            # Last resort: try to find by device type
-            if is_input:
-                # Look for any USB or default input device
-                for i, device in enumerate(devices):
-                    if device['max_input_channels'] > 0:
-                        if 'usb' in device['name'].lower() or 'default' in device['name'].lower():
-                            self.logger.warning(f"Using fallback input device: {device['name']}")
-                            return i
-            else:
-                # Look for any output device that matches virtual_mic_sink
-                for i, device in enumerate(devices):
-                    if device['max_output_channels'] > 0:
-                        if 'virtual' in device['name'].lower() and 'mic' in device['name'].lower():
-                            return i
+            # If neither pulse nor default found, use first available device of correct type
+            for i, device in enumerate(devices):
+                if is_input and device['max_input_channels'] > 0:
+                    self.logger.warning(f"Using first available input device for {audio_device.name}: {device['name']}")
+                    return i
+                elif not is_input and device['max_output_channels'] > 0:
+                    self.logger.warning(f"Using first available output device for {audio_device.name}: {device['name']}")
+                    return i
             
             return None
             
