@@ -5,6 +5,7 @@ PulseAudio diagnostics script for Home Assistant Microphone Filter
 
 import subprocess
 import sys
+import os
 import logging
 
 def run_command(cmd):

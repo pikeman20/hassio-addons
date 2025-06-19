@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Home Assistant Community Add-on: Real-time Microphone Filter
-# Setup virtual microphone devices on existing PulseAudio
+# Setup virtual microphone devices using Home Assistant's PulseAudio
 # ==============================================================================
 
 bashio::log.info "Setting up virtual microphone devices..."
@@ -9,13 +9,34 @@ bashio::log.info "Setting up virtual microphone devices..."
 # Get virtual microphone name from Home Assistant config
 VIRTUAL_MIC_NAME="${VIRTUAL_MIC_NAME:-HA_Filtered_Mic}"
 
-# Wait for Home Assistant's PulseAudio to be available
-sleep 2
+# Set up PulseAudio environment for Home Assistant
+export PULSE_SERVER=unix:/var/run/pulse/native
+
+# Wait for Home Assistant's PulseAudio socket to be available
+sleep 5
 
 # Function to check if PulseAudio is ready
 check_pulseaudio() {
     pactl info >/dev/null 2>&1
 }
+
+# Check if PulseAudio socket exists
+if [ ! -S "/var/run/pulse/native" ]; then
+    bashio::log.warning "PulseAudio socket not found at /var/run/pulse/native"
+    bashio::log.info "Checking alternative locations..."
+    
+    # Check alternative socket locations
+    if [ -S "/run/pulse/native" ]; then
+        export PULSE_SERVER=unix:/run/pulse/native
+        bashio::log.info "Using PulseAudio socket at /run/pulse/native"
+    elif [ -S "/tmp/pulse-socket" ]; then
+        export PULSE_SERVER=unix:/tmp/pulse-socket
+        bashio::log.info "Using PulseAudio socket at /tmp/pulse-socket"
+    else
+        bashio::log.warning "No PulseAudio socket found, will try default connection"
+        unset PULSE_SERVER
+    fi
+fi
 
 # Wait for PulseAudio to be ready (up to 30 seconds)
 for i in {1..30}; do
@@ -29,10 +50,21 @@ done
 
 if ! check_pulseaudio; then
     bashio::log.error "PulseAudio server not available after 30 seconds"
-    exit 1
+    bashio::log.info "PULSE_SERVER: ${PULSE_SERVER:-not set}"
+    bashio::log.info "Available sockets in /var/run/pulse/:"
+    ls -la /var/run/pulse/ 2>/dev/null || bashio::log.info "Directory not found"
+    bashio::log.info "Available sockets in /run/pulse/:"
+    ls -la /run/pulse/ 2>/dev/null || bashio::log.info "Directory not found"
+    bashio::log.warning "Cannot connect to PulseAudio - skipping virtual device creation"
+    bashio::log.info "Container will continue running for debugging"
+    exit 0
 fi
 
-# Clean up any existing virtual devices
+# Get server info for debugging
+bashio::log.info "PulseAudio server info:"
+pactl info | grep -E "(Server Version|Default Sink|Default Source)" || true
+
+# Clean up any existing virtual devices with the same names
 bashio::log.info "Cleaning up existing virtual devices..."
 pactl unload-module module-null-sink 2>/dev/null || true
 pactl unload-module module-virtual-source 2>/dev/null || true
@@ -56,13 +88,19 @@ else
 fi
 
 # Wait a moment for devices to be ready
-sleep 1
+sleep 2
 
 # Verify devices were created
 if pactl list sinks short | grep -q virtual_mic_sink && pactl list sources short | grep -q virtual_mic; then
     bashio::log.info "Virtual microphone devices created successfully"
+    bashio::log.info "Virtual sink: virtual_mic_sink"
+    bashio::log.info "Virtual source: virtual_mic"
 else
     bashio::log.error "Virtual devices not found after creation"
+    bashio::log.info "Available sinks:"
+    pactl list sinks short || true
+    bashio::log.info "Available sources:"
+    pactl list sources short || true
     exit 1
 fi
 

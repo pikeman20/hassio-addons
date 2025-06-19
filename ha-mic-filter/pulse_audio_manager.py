@@ -80,8 +80,32 @@ class PulseAudioManager:
         self.input_stream = None
         self.output_stream = None
         
+        # Set up environment for Home Assistant's PulseAudio
+        self.setup_pulse_environment()
+        
         # Connect to PulseAudio
         self.connect()
+    
+    def setup_pulse_environment(self):
+        """Setup PulseAudio environment for Home Assistant"""
+        import os
+        
+        # Set up PULSE_SERVER if not already set
+        if not os.getenv('PULSE_SERVER'):
+            # Try different socket locations
+            socket_paths = [
+                '/var/run/pulse/native',
+                '/run/pulse/native',
+                '/tmp/pulse-socket'
+            ]
+            
+            for socket_path in socket_paths:
+                if os.path.exists(socket_path):
+                    os.environ['PULSE_SERVER'] = f'unix:{socket_path}'
+                    self.logger.info(f"Using PulseAudio socket: {socket_path}")
+                    break
+            else:
+                self.logger.info("No specific PulseAudio socket found, using default connection")
     
     def connect(self) -> bool:
         """

@@ -6,6 +6,20 @@
 
 bashio::log.info "Starting Real-time Microphone Filter service..."
 
+# Set up PulseAudio environment
+export PULSE_SERVER=unix:/var/run/pulse/native
+
+# Check for alternative socket locations if needed
+if [ ! -S "/var/run/pulse/native" ]; then
+    if [ -S "/run/pulse/native" ]; then
+        export PULSE_SERVER=unix:/run/pulse/native
+    elif [ -S "/tmp/pulse-socket" ]; then
+        export PULSE_SERVER=unix:/tmp/pulse-socket
+    else
+        unset PULSE_SERVER
+    fi
+fi
+
 # Wait for virtual devices to be created by init script
 bashio::log.info "Waiting for virtual devices to be ready..."
 sleep 2
@@ -23,7 +37,8 @@ done
 # Final check
 if ! (pactl list sinks short | grep -q "virtual_mic_sink" && pactl list sources short | grep -q "virtual_mic"); then
     bashio::log.error "Virtual devices not found after waiting. Check init script logs."
-    exit 1
+    bashio::log.info "PULSE_SERVER: ${PULSE_SERVER:-not set}"
+    bashio::log.warning "Continuing without virtual devices - service will be available for debugging"
 fi
 
 # Change to app directory

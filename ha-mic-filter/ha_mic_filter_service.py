@@ -249,8 +249,8 @@ class HAMicFilterService:
             self.pulse_manager = PulseAudioManager()
             
             if not self.pulse_manager.pulse:
-                self.logger.error("Failed to connect to PulseAudio")
-                return False
+                self.logger.error("Failed to connect to PulseAudio - service will run in debug mode")
+                # Don't return False - continue for debugging
             
             # Use constants for device names
             self.pulse_manager.virtual_sink_name = VIRTUAL_MIC_SINK_NAME
@@ -534,9 +534,19 @@ class HAMicFilterService:
                 time.sleep(1)
                 
                 # Periodic status check
-                if self.is_streaming and not self.pulse_manager.is_streaming:
-                    self.logger.warning("Streaming stopped unexpectedly")
-                    self.is_streaming = False
+                if self.pulse_manager and self.pulse_manager.pulse:
+                    if self.is_streaming and not self.pulse_manager.is_streaming:
+                        self.logger.warning("Streaming stopped unexpectedly")
+                        self.is_streaming = False
+                else:
+                    # Log periodically that we're in debug mode
+                    if hasattr(self, '_debug_log_counter'):
+                        self._debug_log_counter += 1
+                    else:
+                        self._debug_log_counter = 1
+                    
+                    if self._debug_log_counter % 60 == 0:  # Every 60 seconds
+                        self.logger.info("Service running in debug mode - PulseAudio not connected")
                 
         except KeyboardInterrupt:
             self.logger.info("Received interrupt signal")
