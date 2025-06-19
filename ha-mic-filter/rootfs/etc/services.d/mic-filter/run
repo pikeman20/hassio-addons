@@ -36,7 +36,7 @@ sleep 2
 
 # Verify virtual devices exist
 for i in {1..15}; do
-    if pactl list sinks short | grep -q "virtual_mic_sink" && pactl list sources short | grep -q "virtual_mic"; then
+    if pactl list sources short | grep -q "virtual_mic"; then
         bashio::log.info "Virtual devices confirmed ready"
         break
     fi
@@ -45,8 +45,8 @@ for i in {1..15}; do
 done
 
 # Final check
-if ! (pactl list sinks short | grep -q "virtual_mic_sink" && pactl list sources short | grep -q "virtual_mic"); then
-    bashio::log.error "Virtual devices not found after waiting. Check init script logs."
+if ! pactl list sources short | grep -q "virtual_mic"; then
+    bashio::log.error "Virtual microphone source not found after waiting. Check init script logs."
     bashio::log.info "PULSE_SERVER: ${PULSE_SERVER:-not set}"
     bashio::log.warning "Continuing without virtual devices - service will be available for debugging"
 fi
