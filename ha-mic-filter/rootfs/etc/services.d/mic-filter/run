@@ -4,6 +4,9 @@
 # Runs the main microphone filtering service
 # ==============================================================================
 
+# Allow unbound variables for compatibility
+set +u
+
 bashio::log.info "Starting Real-time Microphone Filter service..."
 
 # Set up PulseAudio environment
@@ -67,12 +70,11 @@ bashio::log.info "Configuration loaded: auto_start=${auto_start}, log_level=${lo
 
 # Function to check if PulseAudio is still available
 check_pulseaudio_health() {
-    if [ -n "${PULSE_SERVER}" ]; then
+    if [ -n "${PULSE_SERVER:-}" ]; then
         pactl info >/dev/null 2>&1
     else
         # Try default connection
-        unset PULSE_SERVER
-        pactl info >/dev/null 2>&1
+        env -u PULSE_SERVER pactl info >/dev/null 2>&1
     fi
 }
 
@@ -91,6 +93,8 @@ while true; do
                 if check_pulseaudio_health; then
                     bashio::log.info "Found working PulseAudio socket: $socket"
                     break
+                else
+                    unset PULSE_SERVER
                 fi
             fi
         done
