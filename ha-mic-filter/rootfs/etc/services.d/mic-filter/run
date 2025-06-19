@@ -6,8 +6,25 @@
 
 bashio::log.info "Starting Real-time Microphone Filter service..."
 
-# Wait for PulseAudio to be ready
-sleep 3
+# Wait for virtual devices to be created by init script
+bashio::log.info "Waiting for virtual devices to be ready..."
+sleep 2
+
+# Verify virtual devices exist
+for i in {1..15}; do
+    if pactl list sinks short | grep -q "virtual_mic_sink" && pactl list sources short | grep -q "virtual_mic"; then
+        bashio::log.info "Virtual devices confirmed ready"
+        break
+    fi
+    bashio::log.info "Waiting for virtual devices... (attempt $i/15)"
+    sleep 2
+done
+
+# Final check
+if ! (pactl list sinks short | grep -q "virtual_mic_sink" && pactl list sources short | grep -q "virtual_mic"); then
+    bashio::log.error "Virtual devices not found after waiting. Check init script logs."
+    exit 1
+fi
 
 # Change to app directory
 cd /app

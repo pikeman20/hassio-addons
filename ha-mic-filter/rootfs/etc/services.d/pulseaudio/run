@@ -1,23 +1,11 @@
 #!/usr/bin/with-contenv bashio
 # ==============================================================================
 # Home Assistant Community Add-on: Real-time Microphone Filter
-# Runs PulseAudio server
+# No longer needed - Home Assistant provides PulseAudio via audio: true
 # ==============================================================================
 
-bashio::log.info "Starting PulseAudio server..."
+bashio::log.info "PulseAudio service disabled - using Home Assistant's audio system"
 
-# Set PulseAudio configuration path
-export PULSE_CONFIG_PATH=/tmp/pulse-config
-
-# Start PulseAudio as system service with custom config
-exec pulseaudio \
-    --system \
-    --disallow-exit \
-    --disallow-module-loading \
-    --daemonize=false \
-    --log-target=stderr \
-    --log-level=info \
-    --use-pid-file=false \
-    --disable-shm \
-    --exit-idle-time=-1 \
-    --file=/tmp/pulse-config/system.pa
+# Just sleep to keep the service alive but do nothing
+# The virtual devices are created in the init script
+exec sleep infinity

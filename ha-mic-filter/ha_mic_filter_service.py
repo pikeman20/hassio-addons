@@ -256,19 +256,27 @@ class HAMicFilterService:
             self.pulse_manager.virtual_sink_name = VIRTUAL_MIC_SINK_NAME
             self.pulse_manager.virtual_source_name = VIRTUAL_MIC_SOURCE_NAME
             
-            # Virtual devices are created by PulseAudio config, so we skip creating them here
-            self.logger.info("Virtual microphone devices are managed by PulseAudio configuration")
+            # Virtual devices are created by init script, just verify they exist
+            self.logger.info("Virtual microphone devices should be created by init script")
             self.logger.info(f"Expected devices: sink='{VIRTUAL_MIC_SINK_NAME}', source='{VIRTUAL_MIC_SOURCE_NAME}'")
             
-            # Wait a moment for PulseAudio devices to be fully ready
-            time.sleep(2)
-            
-            # Try to refresh devices, but don't fail if it doesn't work
+            # Refresh devices and check for virtual devices
             try:
                 self.pulse_manager.refresh_devices()
                 self.logger.info("Device refresh completed")
+                
+                # Check if virtual devices exist
+                virtual_sink_found = any(device.name == VIRTUAL_MIC_SINK_NAME for device in self.pulse_manager.get_devices())
+                virtual_source_found = any(device.name == VIRTUAL_MIC_SOURCE_NAME for device in self.pulse_manager.get_devices())
+                
+                if virtual_sink_found and virtual_source_found:
+                    self.logger.info("Virtual devices detected in device list")
+                else:
+                    self.logger.warning(f"Virtual devices not in device list (sink: {virtual_sink_found}, source: {virtual_source_found})")
+                    self.logger.info("This is normal - devices may be filtered out but still usable")
+                
             except Exception as e:
-                self.logger.warning(f"Device refresh failed (this is normal in containers): {e}")
+                self.logger.warning(f"Device refresh failed: {e}")
             
             # Setup audio pipeline
             if not self.setup_audio_pipeline():
@@ -495,8 +503,27 @@ class HAMicFilterService:
         # Auto-start streaming if configured
         if auto_start or self.config.get('auto_start', False):
             self.logger.info("Auto-starting audio streaming...")
-            if not self.start_streaming():
-                self.logger.warning("Auto-start failed - continuing in standby mode")
+            
+            # Wait a bit more for devices to be fully ready
+            time.sleep(3)
+            
+            # Try auto-start with retries
+            max_retries = 3
+            for retry in range(max_retries):
+                if self.start_streaming():
+                    self.logger.info("Auto-start successful")
+                    break
+                else:
+                    if retry < max_retries - 1:
+                        self.logger.warning(f"Auto-start attempt {retry + 1} failed, retrying in 5 seconds...")
+                        time.sleep(5)
+                        # Refresh devices before retry
+                        try:
+                            self.pulse_manager.refresh_devices()
+                        except Exception:
+                            pass
+                    else:
+                        self.logger.warning("Auto-start failed after all retries - continuing in standby mode")
         
         
         self.logger.info("Service running - press Ctrl+C to stop")

@@ -85,18 +85,29 @@ class PulseAudioManager:
     
     def connect(self) -> bool:
         """
-        Connect to PulseAudio server
+        Connect to Home Assistant's PulseAudio server
         
         Returns:
             True if connected successfully, False otherwise
         """
         try:
+            # Connect to Home Assistant's PulseAudio server
             self.pulse = pulsectl.Pulse('ha-mic-filter')
-            self.logger.info("Connected to PulseAudio server")
+            
+            # Test the connection by getting server info
+            server_info = self.pulse.server_info()
+            self.logger.info(f"Connected to Home Assistant's PulseAudio server (version: {server_info.server_version})")
+            
+            # Log default devices
+            if server_info.default_sink_name:
+                self.logger.info(f"Default sink: {server_info.default_sink_name}")
+            if server_info.default_source_name:
+                self.logger.info(f"Default source: {server_info.default_source_name}")
+            
             self.refresh_devices()
             return True
         except Exception as e:
-            self.logger.error(f"Failed to connect to PulseAudio: {e}")
+            self.logger.error(f"Failed to connect to Home Assistant's PulseAudio: {e}")
             return False
     
     def disconnect(self):
@@ -118,33 +129,34 @@ class PulseAudioManager:
             self.devices.clear()
             device_id = 0
             
-            # Get sources (input devices)
+            # Get sources (input devices) - include ALL sources for proper device detection
             for source in self.pulse.source_list():
-                if not source.name.startswith('virtual_mic'):  # Skip our virtual devices
-                    device = AudioDevice(
-                        device_id=device_id,
-                        name=source.name,
-                        description=source.description,
-                        max_input_channels=source.channel_count,
-                        max_output_channels=0,
-                        default_sample_rate=float(source.sample_spec.rate)
-                    )
-                    self.devices[device_id] = device
-                    device_id += 1
+                # Only skip monitor sources of our virtual devices to avoid duplicates
+                if source.name.endswith('.monitor') and 'virtual_mic' in source.name:
+                    continue
+                device = AudioDevice(
+                    device_id=device_id,
+                    name=source.name,
+                    description=source.description,
+                    max_input_channels=source.channel_count,
+                    max_output_channels=0,
+                    default_sample_rate=float(source.sample_spec.rate)
+                )
+                self.devices[device_id] = device
+                device_id += 1
             
-            # Get sinks (output devices)
+            # Get sinks (output devices) - include ALL sinks
             for sink in self.pulse.sink_list():
-                if not sink.name.startswith('virtual_mic'):  # Skip our virtual devices
-                    device = AudioDevice(
-                        device_id=device_id,
-                        name=sink.name,
-                        description=sink.description,
-                        max_input_channels=0,
-                        max_output_channels=sink.channel_count,
-                        default_sample_rate=float(sink.sample_spec.rate)
-                    )
-                    self.devices[device_id] = device
-                    device_id += 1
+                device = AudioDevice(
+                    device_id=device_id,
+                    name=sink.name,
+                    description=sink.description,
+                    max_input_channels=0,
+                    max_output_channels=sink.channel_count,
+                    default_sample_rate=float(sink.sample_spec.rate)
+                )
+                self.devices[device_id] = device
+                device_id += 1
             
             self.logger.info(f"Refreshed {len(self.devices)} audio devices")
             
