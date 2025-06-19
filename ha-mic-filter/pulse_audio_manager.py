@@ -506,16 +506,109 @@ class PulseAudioManager:
         
         self.logger.info("Audio streaming stopped")
     
+    def _find_sounddevice_name(self, audio_device: AudioDevice, is_input: bool):
+        """
+        Find sounddevice-compatible device name for a PulseAudio device
+        
+        Args:
+            audio_device: The AudioDevice to find
+            is_input: True for input devices, False for output devices
+            
+        Returns:
+            sounddevice device name/index or None if not found
+        """
+        try:
+            # Get list of sounddevice devices
+            devices = sd.query_devices()
+            
+            # Search by description first (most reliable)
+            for i, device in enumerate(devices):
+                if is_input and device['max_input_channels'] > 0:
+                    if audio_device.description in device['name'] or device['name'] in audio_device.description:
+                        return i
+                elif not is_input and device['max_output_channels'] > 0:
+                    if audio_device.description in device['name'] or device['name'] in audio_device.description:
+                        return i
+            
+            # Search by partial name match
+            for i, device in enumerate(devices):
+                if is_input and device['max_input_channels'] > 0:
+                    # Try to match parts of the PulseAudio name with sounddevice name
+                    if any(part in device['name'].lower() for part in audio_device.name.lower().split('_') if len(part) > 3):
+                        return i
+                elif not is_input and device['max_output_channels'] > 0:
+                    if any(part in device['name'].lower() for part in audio_device.name.lower().split('_') if len(part) > 3):
+                        return i
+            
+            # Last resort: try to find by device type
+            if is_input:
+                # Look for any USB or default input device
+                for i, device in enumerate(devices):
+                    if device['max_input_channels'] > 0:
+                        if 'usb' in device['name'].lower() or 'default' in device['name'].lower():
+                            self.logger.warning(f"Using fallback input device: {device['name']}")
+                            return i
+            else:
+                # Look for any output device that matches virtual_mic_sink
+                for i, device in enumerate(devices):
+                    if device['max_output_channels'] > 0:
+                        if 'virtual' in device['name'].lower() and 'mic' in device['name'].lower():
+                            return i
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error finding sounddevice name: {e}")
+            return None
+    
+    def _log_sounddevice_info(self):
+        """Log sounddevice device information for debugging"""
+        try:
+            devices = sd.query_devices()
+            self.logger.info("=== Sounddevice Available Devices ===")
+            for i, device in enumerate(devices):
+                device_type = []
+                if device['max_input_channels'] > 0:
+                    device_type.append(f"IN({device['max_input_channels']})")
+                if device['max_output_channels'] > 0:
+                    device_type.append(f"OUT({device['max_output_channels']})")
+                type_str = ",".join(device_type) if device_type else "NONE"
+                self.logger.info(f"  [{i}] {device['name']} [{type_str}] @{device['default_samplerate']}Hz")
+            self.logger.info("=== End Sounddevice Devices ===")
+        except Exception as e:
+            self.logger.error(f"Error logging sounddevice info: {e}")
+    
     def _streaming_worker(self, input_device: AudioDevice, output_device: AudioDevice):
         """Worker thread for audio streaming"""
         speaker_stream = None
         try:
+            # Log sounddevice info for debugging
+            self._log_sounddevice_info()
+            
             # Create audio streams using sounddevice
             stream_contexts = []
             
+            # Find sounddevice-compatible device names
+            input_device_name = self._find_sounddevice_name(input_device, is_input=True)
+            output_device_name = self._find_sounddevice_name(output_device, is_input=False)
+            
+            if input_device_name is None:
+                self.logger.error(f"Could not find sounddevice input device for PulseAudio device:")
+                self.logger.error(f"  Name: {input_device.name}")
+                self.logger.error(f"  Description: {input_device.description}")
+                raise RuntimeError(f"Could not find sounddevice input device for '{input_device.name}'")
+            if output_device_name is None:
+                self.logger.error(f"Could not find sounddevice output device for PulseAudio device:")
+                self.logger.error(f"  Name: {output_device.name}")
+                self.logger.error(f"  Description: {output_device.description}")
+                raise RuntimeError(f"Could not find sounddevice output device for '{output_device.name}'")
+            
+            self.logger.info(f"Using sounddevice input: {input_device_name}")
+            self.logger.info(f"Using sounddevice output: {output_device_name}")
+            
             # Always create input and virtual microphone output streams
             input_stream = sd.InputStream(
-                device=input_device.name,
+                device=input_device_name,
                 channels=self.channels,
                 samplerate=self.sample_rate,
                 blocksize=self.frames_per_buffer,
@@ -524,7 +617,7 @@ class PulseAudioManager:
             stream_contexts.append(input_stream)
             
             output_stream = sd.OutputStream(
-                device=output_device.name,
+                device=output_device_name,
                 channels=self.channels,
                 samplerate=self.sample_rate,
                 blocksize=self.frames_per_buffer,
@@ -534,14 +627,19 @@ class PulseAudioManager:
             
             # Create speaker monitoring stream if enabled
             if self.monitor_to_speakers and hasattr(self, 'speaker_device') and self.speaker_device:
-                speaker_stream = sd.OutputStream(
-                    device=self.speaker_device.name,
-                    channels=self.channels,
-                    samplerate=self.sample_rate,
-                    blocksize=self.frames_per_buffer,
-                    dtype=np.float32
-                )
-                stream_contexts.append(speaker_stream)
+                speaker_device_name = self._find_sounddevice_name(self.speaker_device, is_input=False)
+                if speaker_device_name is not None:
+                    speaker_stream = sd.OutputStream(
+                        device=speaker_device_name,
+                        channels=self.channels,
+                        samplerate=self.sample_rate,
+                        blocksize=self.frames_per_buffer,
+                        dtype=np.float32
+                    )
+                    stream_contexts.append(speaker_stream)
+                    self.logger.info(f"Using sounddevice speaker: {speaker_device_name}")
+                else:
+                    self.logger.warning("Could not find sounddevice speaker device, monitoring disabled")
             
             # Start all streams
             for stream in stream_contexts:
