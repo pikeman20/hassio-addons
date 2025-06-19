@@ -3,17 +3,20 @@ FROM $BUILD_FROM
 
 # Install system dependencies
 RUN apk add --no-cache \
+    alsa-lib \
+    alsa-lib-dev \
+    alsa-plugins-pulse \
+    alsa-utils \
     pulseaudio \
     pulseaudio-dev \
     pulseaudio-utils \
-    alsa-utils \
-    alsa-lib-dev \
-    alsa-plugins-pulse \
     portaudio-dev \
     gcc \
     g++ \
     make \
     cmake \
+    musl-dev \
+    linux-headers \
     git \
     curl \
     bash \
@@ -22,11 +25,11 @@ RUN apk add --no-cache \
     npm
 
 # Install Python dependencies
-RUN pip3 install --no-cache-dir \
+RUN pip3 install --break-system-packages \
     numpy \
-    pyaudio \
     pulsectl \
-    sounddevice
+    sounddevice \
+    pyaudio
 
 # Copy obs-plugin and rnnoise
 COPY obs-plugin /tmp/obs-plugin
@@ -75,7 +78,7 @@ LABEL \
     io.hass.name="Real-time Microphone Filter" \
     io.hass.type="addon" \
     io.hass.arch="aarch64|amd64|armv7" \
-    io.hass.version="1.0.13"
+    io.hass.version="1.0.14"
 
 # Main command
 CMD [ "/run.sh" ]
