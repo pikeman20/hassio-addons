@@ -107,7 +107,9 @@ else
 fi
 
 # Get monitor_to_speakers setting from config
-MONITOR_TO_SPEAKERS="${MONITOR_TO_SPEAKERS:-false}"
+# Read directly from Home Assistant config since env vars don't carry over between scripts
+MONITOR_TO_SPEAKERS=$(bashio::config 'monitor_to_speakers' || echo "false")
+bashio::log.info "DEBUG: MONITOR_TO_SPEAKERS value: ${MONITOR_TO_SPEAKERS}"
 
 # Create loopback to default speakers if monitoring is enabled
 if [ "${MONITOR_TO_SPEAKERS}" = "true" ]; then
@@ -118,8 +120,8 @@ if [ "${MONITOR_TO_SPEAKERS}" = "true" ]; then
     if [ -n "${DEFAULT_SINK}" ]; then
         bashio::log.info "Default sink: ${DEFAULT_SINK}"
         
-        # Create loopback from virtual_mic_sink to default speakers
-        if pactl load-module module-loopback source=virtual_mic_sink.monitor sink="${DEFAULT_SINK}" latency_msec=10; then
+        # Create loopback from virtual_mic_sink to default speakers with higher latency to avoid underruns
+        if pactl load-module module-loopback source=virtual_mic_sink.monitor sink="${DEFAULT_SINK}" latency_msec=50; then
             bashio::log.info "Loopback created: virtual_mic_sink.monitor -> ${DEFAULT_SINK}"
         else
             bashio::log.warning "Failed to create loopback to speakers"

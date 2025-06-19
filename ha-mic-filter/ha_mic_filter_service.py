@@ -441,12 +441,16 @@ class HAMicFilterService:
             return False
         
         # Start streaming with HA defaults
+        monitor_to_speakers = self.config.get('monitor_to_speakers', False)
+        self.logger.info(f"DEBUG: monitor_to_speakers config value: {monitor_to_speakers}")
+        self.logger.info(f"DEBUG: full config: {self.config}")
+        
         success = self.pulse_manager.start_audio_streaming(
             audio_processor_callback=self.audio_processor_callback,
             sample_rate=self.config.get('sample_rate', 48000),
             channels=self.config.get('channels', 1),
             frames_per_buffer=480,
-            monitor_to_speakers=self.config.get('monitor_to_speakers', False)
+            monitor_to_speakers=monitor_to_speakers
         )
         
         if success:
