@@ -70,7 +70,6 @@ pactl info | grep -E "(Server Version|Default Sink|Default Source)" || true
 bashio::log.info "Cleaning up existing virtual devices..."
 pactl unload-module module-null-sink 2>/dev/null || true
 pactl unload-module module-virtual-source 2>/dev/null || true
-pactl unload-module module-loopback 2>/dev/null || true
 
 # Create virtual sink for the filtered microphone
 bashio::log.info "Creating virtual sink..."

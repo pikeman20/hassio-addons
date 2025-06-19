@@ -41,9 +41,6 @@ export AUTO_START="${auto_start}"
 export LOG_LEVEL="${log_level^^}"
 export MONITOR_TO_SPEAKERS="${monitor_to_speakers}"
 
-# Make the MONITOR_TO_SPEAKERS available for the PulseAudio setup script
-echo "export MONITOR_TO_SPEAKERS=\"${monitor_to_speakers}\"" >> /etc/profile
-
 # Read audio pipeline configuration
 declare noise_suppression_enabled
 declare noise_suppression_method
