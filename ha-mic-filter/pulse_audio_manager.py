@@ -551,6 +551,10 @@ class PulseAudioManager:
             
             self.logger.info("Audio streams created, starting processing loop...")
             
+            # Retry counter for temporary errors
+            consecutive_errors = 0
+            max_consecutive_errors = 10
+            
             while self.is_streaming:
                 try:
                     # Read audio from input
@@ -561,13 +565,17 @@ class PulseAudioManager:
                     
                     # Process audio through the pipeline
                     if self.audio_processor_callback:
-                        processed_audio = self.audio_processor_callback(audio_data.flatten())
-                        
-                        # Reshape if needed
-                        if len(processed_audio.shape) == 1 and self.channels > 1:
-                            processed_audio = processed_audio.reshape(-1, self.channels)
-                        elif len(processed_audio.shape) == 1:
-                            processed_audio = processed_audio.reshape(-1, 1)
+                        try:
+                            processed_audio = self.audio_processor_callback(audio_data.flatten())
+                            
+                            # Reshape if needed
+                            if len(processed_audio.shape) == 1 and self.channels > 1:
+                                processed_audio = processed_audio.reshape(-1, self.channels)
+                            elif len(processed_audio.shape) == 1:
+                                processed_audio = processed_audio.reshape(-1, 1)
+                        except Exception as e:
+                            self.logger.warning(f"Audio processing error: {e}, using original audio")
+                            processed_audio = audio_data
                     else:
                         processed_audio = audio_data
                     
@@ -581,10 +589,30 @@ class PulseAudioManager:
                         except Exception as e:
                             self.logger.warning(f"Error writing to speaker monitoring: {e}")
                     
+                    # Reset error counter on successful iteration
+                    consecutive_errors = 0
+                    
                 except Exception as e:
                     if self.is_streaming:  # Only log if we're still supposed to be streaming
-                        self.logger.error(f"Error in streaming loop: {e}")
-                    break
+                        consecutive_errors += 1
+                        self.logger.error(f"Error in streaming loop (#{consecutive_errors}): {e}")
+                        
+                        # Check if this is a recoverable error
+                        error_str = str(e).lower()
+                        is_recoverable = any(keyword in error_str for keyword in [
+                            "pulseaudio", "connection", "timeout", "device", "input", "output"
+                        ])
+                        
+                        if is_recoverable and consecutive_errors < max_consecutive_errors:
+                            self.logger.warning(f"Recoverable error detected, attempting recovery (attempt {consecutive_errors}/{max_consecutive_errors})...")
+                            time.sleep(min(consecutive_errors * 0.5, 3))  # Progressive backoff
+                            continue  # Try to continue streaming
+                        else:
+                            if consecutive_errors >= max_consecutive_errors:
+                                self.logger.error(f"Too many consecutive errors ({consecutive_errors}), stopping streaming")
+                            else:
+                                self.logger.error("Non-recoverable error, stopping streaming")
+                            break
             
         except Exception as e:
             self.logger.error(f"Error in streaming worker: {e}")

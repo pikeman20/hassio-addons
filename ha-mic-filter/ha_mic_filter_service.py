@@ -533,11 +533,40 @@ class HAMicFilterService:
             while self.running:
                 time.sleep(1)
                 
-                # Periodic status check
+                # Enhanced health check and auto-recovery
                 if self.pulse_manager and self.pulse_manager.pulse:
                     if self.is_streaming and not self.pulse_manager.is_streaming:
-                        self.logger.warning("Streaming stopped unexpectedly")
+                        self.logger.warning("Streaming stopped unexpectedly - attempting auto-recovery")
                         self.is_streaming = False
+                        
+                        # Try to restart streaming if auto_start is enabled
+                        if self.config.get('auto_start', False):
+                            self.logger.info("Attempting to restart streaming...")
+                            try:
+                                # Wait a bit before retry
+                                time.sleep(3)
+                                # Refresh devices
+                                self.pulse_manager.refresh_devices()
+                                # Try to restart
+                                if self.start_streaming():
+                                    self.logger.info("Auto-recovery successful - streaming restarted")
+                                else:
+                                    self.logger.warning("Auto-recovery failed - will retry next cycle")
+                            except Exception as e:
+                                self.logger.error(f"Auto-recovery error: {e}")
+                    
+                    # Check PulseAudio connection health
+                    try:
+                        if self.pulse_manager.pulse:
+                            # Try a simple operation to verify connection
+                            _ = self.pulse_manager.pulse.server_info()
+                    except Exception as e:
+                        self.logger.warning(f"PulseAudio connection issue detected: {e}")
+                        # Try to reconnect
+                        try:
+                            self.pulse_manager.connect()
+                        except Exception:
+                            pass
                 else:
                     # Log periodically that we're in debug mode
                     if hasattr(self, '_debug_log_counter'):
@@ -547,6 +576,16 @@ class HAMicFilterService:
                     
                     if self._debug_log_counter % 60 == 0:  # Every 60 seconds
                         self.logger.info("Service running in debug mode - PulseAudio not connected")
+                        
+                        # Try to reconnect periodically
+                        if self.pulse_manager:
+                            try:
+                                self.logger.info("Attempting to reconnect to PulseAudio...")
+                                if self.pulse_manager.connect():
+                                    self.logger.info("PulseAudio reconnection successful")
+                                    self._debug_log_counter = 0  # Reset counter
+                            except Exception as e:
+                                self.logger.debug(f"Reconnection attempt failed: {e}")
                 
         except KeyboardInterrupt:
             self.logger.info("Received interrupt signal")

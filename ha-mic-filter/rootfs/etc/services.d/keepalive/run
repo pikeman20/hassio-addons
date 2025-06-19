@@ -6,8 +6,18 @@
 
 bashio::log.info "Starting keepalive service to maintain container for debugging..."
 
+# Disable automatic shutdown on service failures
+exec 2>&1
+set +e
+
 # Run infinite loop to keep container alive
 while true; do
-    sleep 60
-    bashio::log.debug "Container keepalive - services can be debugged"
+    sleep 30
+    bashio::log.info "Container keepalive active - ready for debugging"
+    
+    # Try to restart mic-filter if it died
+    if ! s6-svstat /var/run/s6/services/mic-filter | grep -q "up"; then
+        bashio::log.info "Mic-filter service is down, attempting restart..."
+        s6-svc -u /var/run/s6/services/mic-filter 2>/dev/null || true
+    fi
 done
