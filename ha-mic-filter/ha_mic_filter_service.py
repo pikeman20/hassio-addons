@@ -404,7 +404,6 @@ class HAMicFilterService:
                     release_time=lim_config.get('release_time', 60.0)
                 )
             
-            self.audio_pipeline.print_pipeline_summary()
             self.logger.info("Audio pipeline setup completed")
             return True
             
