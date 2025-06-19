@@ -78,7 +78,7 @@ LABEL \
     io.hass.name="Real-time Microphone Filter" \
     io.hass.type="addon" \
     io.hass.arch="aarch64|amd64|armv7" \
-    io.hass.version="1.0.27"
+    io.hass.version="1.0.28"
 
 # Main command
 CMD [ "/run.sh" ]

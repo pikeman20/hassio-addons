@@ -103,10 +103,10 @@ class HAMicFilterService:
         except Exception as e:
             self.logger.error(f"Failed to load persistent config: {e}")
         
-        # Set defaults
+        # Set defaults with larger buffer to prevent ALSA underruns
         self.config.setdefault('sample_rate', 48000)
         self.config.setdefault('channels', 1)
-        self.config.setdefault('buffer_size_ms', 10)
+        self.config.setdefault('buffer_size_ms', 20)  # Increased from 10ms to 20ms
         self.config.setdefault('virtual_mic_name', 'HA_Filtered_Mic')
         self.config.setdefault('auto_start', False)
     
@@ -423,14 +423,20 @@ class HAMicFilterService:
             lim_config = pipeline_config.get('limiter', {})
             if lim_config.get('enabled', True):
                 # Check if limiter is supported by the library
-                if self.audio_pipeline.library.obs_pipeline_is_filter_supported(FilterType.LIMITER.value):
-                    self.audio_pipeline.add_filter(
-                        FilterType.LIMITER,
-                        threshold=lim_config.get('threshold', -0.2),
-                        release_time=lim_config.get('release_time', 60.0)
-                    )
-                else:
-                    self.logger.warning("LIMITER filter not supported by library, skipping")
+                try:
+                    if (hasattr(self.audio_pipeline.library, 'obs_pipeline_is_filter_supported') and
+                        self.audio_pipeline.library.obs_pipeline_is_filter_supported(FilterType.LIMITER.value)):
+                        filter_id = self.audio_pipeline.add_filter(
+                            FilterType.LIMITER,
+                            threshold=lim_config.get('threshold', -0.2),
+                            release_time=lim_config.get('release_time', 60.0)
+                        )
+                        if filter_id is None:
+                            self.logger.warning("LIMITER filter failed to add - not implemented in pipeline")
+                    else:
+                        self.logger.warning("LIMITER filter not supported by library, skipping")
+                except Exception as e:
+                    self.logger.warning(f"LIMITER filter error: {e}, skipping")
             
             self.logger.info("Audio pipeline setup completed")
             return True
@@ -461,11 +467,20 @@ class HAMicFilterService:
         self.logger.info(f"DEBUG: monitor_to_speakers config value: {monitor_to_speakers}")
         self.logger.info(f"DEBUG: full config: {self.config}")
         
+        # Calculate optimal buffer size based on sample rate and buffer_size_ms
+        sample_rate = self.config.get('sample_rate', 48000)
+        buffer_size_ms = self.config.get('buffer_size_ms', 20)
+        optimal_frames = int((sample_rate * buffer_size_ms) / 1000)
+        # Ensure minimum buffer size to prevent underruns
+        frames_per_buffer = max(optimal_frames, 960)  # Minimum 20ms at 48kHz
+        
+        self.logger.info(f"Using frames_per_buffer: {frames_per_buffer} ({(frames_per_buffer * 1000) / sample_rate:.1f}ms)")
+        
         success = self.pulse_manager.start_audio_streaming(
             audio_processor_callback=self.audio_processor_callback,
-            sample_rate=self.config.get('sample_rate', 48000),
+            sample_rate=sample_rate,
             channels=self.config.get('channels', 1),
-            frames_per_buffer=1024,  # Increased buffer size to reduce underruns
+            frames_per_buffer=frames_per_buffer,
             monitor_to_speakers=monitor_to_speakers
         )
         

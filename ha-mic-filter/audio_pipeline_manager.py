@@ -389,7 +389,7 @@ class AudioPipelineManager:
             print(f"Added {filter_type.name} filter (ID: {filter_id})")
             return filter_id
         else:
-            print(f"Failed to add {filter_type.name} filter")
+            print(f"Failed to add {filter_type.name} filter (error code: {result})")
             return None
     
     def _set_filter_parameters(self, params: obs_filter_params_t, 
@@ -489,7 +489,16 @@ class AudioPipelineManager:
                             processed_data[:, ch] = channel_data
                         return processed_data
                 else:
-                    print(f"Audio processing failed with code: {result}")
+                    # Log the specific error but continue with original audio
+                    error_messages = {
+                        1: "Invalid parameters",
+                        2: "Unsupported format",
+                        3: "Filter not found",
+                        4: "Invalid filter type",
+                        5: "Initialization failed"
+                    }
+                    error_msg = error_messages.get(result, f"Unknown error ({result})")
+                    print(f"Audio processing failed: {error_msg}, using original audio")
                     return audio_data
                     
             except Exception as e:

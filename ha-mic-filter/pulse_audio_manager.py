@@ -607,13 +607,14 @@ class PulseAudioManager:
             self.logger.info(f"Using sounddevice input: {input_device_name}")
             self.logger.info(f"Using sounddevice output: {output_device_name}")
             
-            # Always create input and virtual microphone output streams
+            # Always create input and virtual microphone output streams with larger buffers
             input_stream = sd.InputStream(
                 device=input_device_name,
                 channels=self.channels,
                 samplerate=self.sample_rate,
                 blocksize=self.frames_per_buffer,
-                dtype=np.float32
+                dtype=np.float32,
+                latency='low'  # Request low latency mode
             )
             stream_contexts.append(input_stream)
             
@@ -622,7 +623,8 @@ class PulseAudioManager:
                 channels=self.channels,
                 samplerate=self.sample_rate,
                 blocksize=self.frames_per_buffer,
-                dtype=np.float32
+                dtype=np.float32,
+                latency='low'  # Request low latency mode
             )
             stream_contexts.append(output_stream)
             
