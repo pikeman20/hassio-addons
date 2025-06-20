@@ -6,9 +6,6 @@ CONFIG=/data/options.json
 
 # Helper: get value or default
 get_cfg() { jq -r --arg k "$1" --arg d "$2" '.[$k] // $d' "$CONFIG"; }
-log() { echo "[INFO] $*"; }
-warn() { echo "[WARN] $*"; }
-err() { echo "[ERROR] $*" >&2; }
 
 VIRTUAL_MIC_NAME=$(get_cfg "virtual_mic_name" "HA_Filtered_Mic")
 MONITOR_TO_SPEAKERS=$(get_cfg "monitor_to_speakers" "false")
@@ -20,9 +17,9 @@ GSTREAM_SRC_DEVICE=$(get_cfg "input_device" "default")
 log "GStreamer will use source device: $GSTREAM_SRC_DEVICE"
 pactl list sources short | grep "$GSTREAM_SRC_DEVICE" || log "Source device '$GSTREAM_SRC_DEVICE' not found in sources list"
 
-# Print all environment variables for debugging
-log "All environment variables:"
-env
+log() { echo "[INFO] $*"; }
+warn() { echo "[WARN] $*"; }
+err() { echo "[ERROR] $*" >&2; }
 
 # Set up PulseAudio environment
 export PULSE_SERVER=unix:/run/audio/pulse.sock
@@ -30,7 +27,7 @@ export PULSE_SERVER=unix:/run/audio/pulse.sock
 # Wait for PulseAudio socket to be available
 for i in {1..10}; do
   if pactl info > /dev/null 2>&1; then break; fi
-  log "Waiting for PulseAudio..."
+  echo "[INFO] Waiting for PulseAudio..."
   sleep 1
 done
 
@@ -38,6 +35,9 @@ if ! pactl info > /dev/null 2>&1; then
   err "Cannot connect to PulseAudio."
   exit 1
 fi
+
+log "pactl info output:"
+pactl info
 
 # Print available PulseAudio sources (microphones) and sinks (speakers)
 log "Available PulseAudio sources (microphones):"
