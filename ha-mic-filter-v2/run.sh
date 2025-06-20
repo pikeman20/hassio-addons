@@ -1,4 +1,35 @@
-#!/bin/bash
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Home Assistant Community Add-on: Real-time Microphone Filter
+# Displays a simple banner on startup
+# ==============================================================================
+
+# Try to get supervisor info, but don't fail if API is not accessible
+bashio::log.blue \
+    '-----------------------------------------------------------'
+bashio::log.blue " Add-on: Real-time Microphone Filter"
+bashio::log.blue " Real-time microphone filtering for Home Assistant Assist with virtual audio device support"
+bashio::log.blue \
+    '-----------------------------------------------------------'
+bashio::log.blue " Add-on version: 1.0.4"
+
+# Try to get HA/Supervisor versions, but continue if they fail
+if bashio::supervisor.ping 2>/dev/null; then
+    HA_VERSION=$(bashio::core.version 2>/dev/null || echo "Unknown")
+    SUPERVISOR_VERSION=$(bashio::supervisor.version 2>/dev/null || echo "Unknown")
+    bashio::log.blue " Home Assistant version: ${HA_VERSION}"
+    bashio::log.blue " Supervisor version: ${SUPERVISOR_VERSION}"
+else
+    bashio::log.blue " Home Assistant version: (API not accessible)"
+    bashio::log.blue " Supervisor version: (API not accessible)"
+fi
+
+bashio::log.blue \
+    '-----------------------------------------------------------'
+bashio::log.blue " Please, share the above information when looking for help"
+bashio::log.blue " or support in, e.g., GitHub, forums or the Discord chat."
+bashio::log.blue \
+    '-----------------------------------------------------------'
 
 set -x
 
@@ -211,42 +242,51 @@ if [ "$(get_cfg "compressor_enabled" "false")" = "true" ]; then
     makeup-gain=$COMPRESSOR_GAIN"
 fi
 
-# Limiter
+# Limiter - requires 2 channels input. Outputs whatever it receives if it's stereo.
+# If the pipeline is mono, convert to stereo for the limiter, then back to mono.
 if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
   THRESH=$(get_cfg "limiter_threshold" "-0.2")
   RELEASE_MS=$(get_cfg "limiter_release_time" "60")
   RELEASE_S=$(awk "BEGIN {print $RELEASE_MS / 1000}")
-  if [ "$(awk "BEGIN {print ($RELEASE_S > 2)}")" -eq 1 ]; then
-    RELEASE_S=2
-  elif [ "$(awk "BEGIN {print ($RELEASE_S < 0.01)}")" -eq 1 ]; then
-    RELEASE_S=0.01
-  fi
+  RELEASE_S=$(awk "BEGIN {if ($RELEASE_S > 2) print 2; else if ($RELEASE_S < 0.01) print 0.01; else print $RELEASE_S}")
   THRESH=$(awk "BEGIN {if ($THRESH < -20) print -20; else if ($THRESH > 0) print 0; else print $THRESH}")
-  # LADSPA Fast Lookahead Limiter requires 2 channels input
-  append_filter "audioconvert ! audio/x-raw,channels=2 ! ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S"
+
+  if [ "$CURRENT_CHANNELS" -eq 1 ]; then
+    append_filter "audioconvert ! audio/x-raw,channels=2" # Convert to stereo for limiter
+  fi
+  append_filter "ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S"
+  if [ "$CURRENT_CHANNELS" -eq 1 ]; then
+    append_filter "audioconvert ! audio/x-raw,channels=1" # Convert back to mono if original was mono
+  fi
 fi
 
-# Compose pipeline
-PIPELINE="pulsesrc device=$DEFAULT_SOURCE ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
+# --- Compose the full GStreamer pipeline ---
+
+# Start with the actual source format and rate, then convert to the desired pipeline format
+PIPELINE="pulsesrc device=$DEFAULT_SOURCE ! audioconvert ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
+
+# Add all collected filters
 if [ -n "$FILTER_CHAIN" ]; then
   PIPELINE="$PIPELINE ! $FILTER_CHAIN"
 fi
-PIPELINE="$PIPELINE ! pulsesink device=$VIRTUAL_MIC_NAME"
 
-# Handle monitoring to speakers# Handle monitoring to speakers or direct output to virtual mic
+# Handle monitoring to speakers or direct output to virtual mic
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
-  # Add tee for branching
+  # Tee splits the main processed stream. The stream coming here is at $SAMPLE_RATE, $CHANNELS
   PIPELINE="$PIPELINE ! tee name=t"
 
-  # Branch for Virtual Mic
+  # Branch for Virtual Mic: always outputs to the configured SAMPLE_RATE and CHANNELS
+  # No need for extra audioconvert/audioresample if the pipeline is already in desired format
+  # unless s16le format is strictly required by the null-sink, which is often the case.
   PIPELINE="$PIPELINE t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=s16le,rate=$SAMPLE_RATE,channels=$CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME"
 
-  # Branch for Physical Speakers
+  # Branch for Physical Speakers: converts to native sink format
   PIPELINE="$PIPELINE t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SINK_FORMAT,rate=$SINK_RATE,channels=$SINK_CHANNELS ! pulsesink device=$DEFAULT_SINK"
 
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 else
   # If not monitoring to speakers, output directly to virtual mic
+  # Ensure format is s16le, rate=$SAMPLE_RATE, channels=$CHANNELS for virtual mic
   PIPELINE="$PIPELINE ! audioconvert ! audioresample ! audio/x-raw,format=s16le,rate=$SAMPLE_RATE,channels=$CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME"
 fi
 
