@@ -1,6 +1,6 @@
 ---
 name: Real-time Microphone Filter
-version: 1.0.3
+version: 1.0.4
 slug: ha-mic-filters-v3
 description: Real-time microphone filtering for Home Assistant Assist with virtual audio device support
 url: https://github.com/pikeman20/hassio-addons
