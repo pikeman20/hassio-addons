@@ -1,0 +1,21 @@
+services:
+  ha-mic-filter-v2:
+    build:
+      context: .
+      args:
+        BUILD_FROM: ghcr.io/home-assistant/amd64-base-debian
+    container_name: ha-mic-filter-v2
+    environment:
+      - PULSE_SERVER=unix:/run/audio/pulse.sock
+    volumes:
+      - /mnt/wslg/PulseServer:/run/audio/pulse.sock  # Mount từ WSLg vào vị trí chuẩn của addon
+      - /etc/machine-id:/etc/machine-id:ro
+      - ./config:/data
+      - ./run.sh:/run.sh
+    devices:
+      - /dev/snd
+    privileged: true
+    network_mode: host
+    tty: true
+    stdin_open: true
+    restart: "no"
