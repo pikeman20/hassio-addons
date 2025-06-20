@@ -12,9 +12,18 @@ MONITOR_TO_SPEAKERS=$(get_cfg "monitor_to_speakers" "false")
 SAMPLE_RATE=$(get_cfg "sample_rate" "48000")
 CHANNELS=$(get_cfg "channels" "1")
 
+# Print the PulseAudio source that will be used by GStreamer
+GSTREAM_SRC_DEVICE=$(get_cfg "input_device" "default")
+log "GStreamer will use source device: $GSTREAM_SRC_DEVICE"
+pactl list sources short | grep "$GSTREAM_SRC_DEVICE" || log "Source device '$GSTREAM_SRC_DEVICE' not found in sources list"
+
 log() { echo "[INFO] $*"; }
 warn() { echo "[WARN] $*"; }
 err() { echo "[ERROR] $*" >&2; }
+
+# Print all environment variables for debugging
+log "All environment variables:"
+env
 
 # Set up PulseAudio environment
 export PULSE_SERVER=unix:/run/audio/pulse.sock
@@ -30,6 +39,12 @@ if ! pactl info > /dev/null 2>&1; then
   err "Cannot connect to PulseAudio."
   exit 1
 fi
+
+# Print available PulseAudio sources (microphones) and sinks (speakers)
+log "Available PulseAudio sources (microphones):"
+pactl list sources short || true
+log "Available PulseAudio sinks (speakers):"
+pactl list sinks short || true
 
 # Clean up any existing virtual devices
 log "Cleaning up existing virtual devices..."
