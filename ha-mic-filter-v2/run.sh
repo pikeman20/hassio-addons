@@ -6,6 +6,9 @@ CONFIG=/data/options.json
 
 # Helper: get value or default
 get_cfg() { jq -r --arg k "$1" --arg d "$2" '.[$k] // $d' "$CONFIG"; }
+log() { echo "[INFO] $*"; }
+warn() { echo "[WARN] $*"; }
+err() { echo "[ERROR] $*" >&2; }
 
 VIRTUAL_MIC_NAME=$(get_cfg "virtual_mic_name" "HA_Filtered_Mic")
 MONITOR_TO_SPEAKERS=$(get_cfg "monitor_to_speakers" "false")
@@ -16,10 +19,6 @@ CHANNELS=$(get_cfg "channels" "1")
 GSTREAM_SRC_DEVICE=$(get_cfg "input_device" "default")
 log "GStreamer will use source device: $GSTREAM_SRC_DEVICE"
 pactl list sources short | grep "$GSTREAM_SRC_DEVICE" || log "Source device '$GSTREAM_SRC_DEVICE' not found in sources list"
-
-log() { echo "[INFO] $*"; }
-warn() { echo "[WARN] $*"; }
-err() { echo "[ERROR] $*" >&2; }
 
 # Print all environment variables for debugging
 log "All environment variables:"
