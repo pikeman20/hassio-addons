@@ -231,31 +231,29 @@ if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
   fi
 fi
 
-# --- Compose the full GStreamer pipeline ---
-# The pipeline starts with PIPELINE_HEAD (source converted to desired SAMPLE_RATE, CHANNELS)
-# followed by the FILTER_CHAIN.
-FULL_PIPELINE="$PIPELINE_HEAD" # This should correctly initialize FULL_PIPELINE
+PIPELINE_HEAD="pulsesrc device=$DEFAULT_SOURCE ! audioconvert ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
+
+# Bắt đầu xây dựng chuỗi lệnh hoàn chỉnh
+FULL_PIPELINE="$PIPELINE_HEAD"
 if [ -n "$FILTER_CHAIN" ]; then
-  FULL_PIPELINE="$FULL_PIPELINE ! $FILTER_CHAIN" # This appends the filter chain correctly
+  FULL_PIPELINE="$FULL_PIPELINE ! $FILTER_CHAIN"
 fi
 
-# Handle monitoring to speakers or direct output to virtual mic
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
-  # Tee splits the main processed stream. The stream coming here is at $SAMPLE_RATE, $CHANNELS
-  FULL_PIPELINE="$FULL_PIPELINE ! tee name=t" # PROBLEM HERE: You are doing += "! tee name=t"
-
-  # Branch for Virtual Mic
-  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME" # PROBLEM HERE: += "! t. ! queue..."
-
-  # Branch for Physical Speakers
-  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$DEFAULT_SINK" # PROBLEM HERE: += "! t. ! queue..."
-
-  echo "[INFO] Output will be routed to both virtual mic and speakers"
+  # Sử dụng 'tee' để chia luồng: một đi đến sink ảo (cho các ứng dụng khác), một đi đến loa thật (để bạn nghe).
+  # Toàn bộ cấu trúc 'tee' được xây dựng trong một chuỗi duy nhất.
+  FULL_PIPELINE="$FULL_PIPELINE ! tee name=t \
+    t. ! queue ! pulsesink device=virtual_mic_sink \
+    t. ! queue ! pulsesink device=$DEFAULT_SINK"
+  echo "[INFO] Output will be routed to BOTH the virtual mic and speakers."
 else
-  # If not monitoring to speakers, output directly to virtual mic
-  FULL_PIPELINE="$FULL_PIPELINE ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME" # PROBLEM HERE: += "! audioconvert..."
+  # Chỉ xuất ra sink ảo.
+  FULL_PIPELINE="$FULL_PIPELINE ! pulsesink device=virtual_mic_sink"
+  echo "[INFO] Output will be routed to the virtual mic ONLY."
 fi
 
-echo "[INFO] Launching GStreamer pipeline: **$FULL_PIPELINE**"
-set -- $FULL_PIPELINE
-exec gst-launch-1.0 "$@"
+echo "[INFO] Launching GStreamer pipeline: gst-launch-1.0 $FULL_PIPELINE"
+
+# Sử dụng 'exec' để thay thế tiến trình shell bằng GStreamer
+# `set --` và `$@` không còn cần thiết vì chúng ta đã xây dựng chuỗi lệnh đúng cách.
+exec gst-launch-1.0 $FULL_PIPELINE
