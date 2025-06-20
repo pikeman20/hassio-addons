@@ -221,46 +221,44 @@ if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
   THRESH=$(awk "BEGIN {if ($THRESH < -20) print -20; else if ($THRESH > 0) print 0; else print $THRESH}")
 
   # Convert to 2 channels for the limiter, regardless of CURRENT_CHANNELS
-  append_filter "audioconvert ! audio/x-raw,channels=2"
+  append_filter "audioconvert ! \"audio/x-raw,channels=2\""
   
   append_filter "ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S"
   
   # Convert back to the desired CHANNELS (from config) after the limiter, if it's not 2.
   if [ "$CHANNELS" -ne 2 ]; then
-    append_filter "audioconvert ! audio/x-raw,channels=$CHANNELS"
+    append_filter "audioconvert ! \"audio/x-raw,channels=$CHANNELS\""
   fi
 fi
 
 # --- Compose the full GStreamer pipeline ---
+# The pipeline starts with PIPELINE_HEAD (source converted to desired SAMPLE_RATE, CHANNELS)
+# followed by the FILTER_CHAIN.
 
-# Start with the actual source format and rate, then convert to the desired pipeline format
-PIPELINE="pulsesrc device=$DEFAULT_SOURCE ! audioconvert ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
-
-# Add all collected filters
+FULL_PIPELINE="$PIPELINE_HEAD"
 if [ -n "$FILTER_CHAIN" ]; then
-  PIPELINE="$PIPELINE ! $FILTER_CHAIN"
+  FULL_PIPELINE="$FULL_PIPELINE ! $FILTER_CHAIN"
 fi
 
-# Handle monitoring to speakers or direct output to virtual mic# Handle monitoring to speakers or direct output to virtual mic
+# Handle monitoring to speakers or direct output to virtual mic
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
   # Tee splits the main processed stream. The stream coming here is at $SAMPLE_RATE, $CHANNELS
   FULL_PIPELINE="$FULL_PIPELINE ! tee name=t"
 
   # Branch for Virtual Mic: always outputs to the configured SAMPLE_RATE and CHANNELS (s16le format)
-  # REMOVE THE EXPLICIT CAPS FILTER "audio/x-raw,..." HERE
+  # Removed explicit caps filter, let pulsesink negotiate.
   FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME"
 
   # Branch for Physical Speakers: converts to native sink format
-  # REMOVE THE EXPLICIT CAPS FILTER "audio/x-raw,..." HERE
+  # Removed explicit caps filter, let pulsesink negotiate.
   FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$DEFAULT_SINK"
 
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 else
   # If not monitoring to speakers, output directly to virtual mic
-  # REMOVE THE EXPLICIT CAPS FILTER "audio/x-raw,..." HERE
+  # Removed explicit caps filter, let pulsesink negotiate.
   FULL_PIPELINE="$FULL_PIPELINE ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME"
 fi
 
-
-echo "[INFO] Launching GStreamer pipeline: $PIPELINE"
-exec gst-launch-1.0 $PIPELINE
+echo "[INFO] Launching GStreamer pipeline: **$FULL_PIPELINE**"
+exec gst-launch-1.0 $FULL_PIPELINE
