@@ -221,13 +221,13 @@ if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
   THRESH=$(awk "BEGIN {if ($THRESH < -20) print -20; else if ($THRESH > 0) print 0; else print $THRESH}")
 
   # Convert to 2 channels for the limiter, regardless of CURRENT_CHANNELS
-  append_filter "audioconvert ! \"audio/x-raw,channels=2\""
+  append_filter "audioconvert ! audio/x-raw,channels=2"
   
   append_filter "ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S"
   
   # Convert back to the desired CHANNELS (from config) after the limiter, if it's not 2.
   if [ "$CHANNELS" -ne 2 ]; then
-    append_filter "audioconvert ! \"audio/x-raw,channels=$CHANNELS\""
+    append_filter "audioconvert ! audio/x-raw,channels=$CHANNELS"
   fi
 fi
 
