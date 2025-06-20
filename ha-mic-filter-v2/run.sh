@@ -13,13 +13,11 @@ SAMPLE_RATE=$(get_cfg "sample_rate" "48000")
 CHANNELS=$(get_cfg "channels" "1")
 
 # Print the PulseAudio source that will be used by GStreamer
+# (removed log function, use echo directly)
 GSTREAM_SRC_DEVICE=$(get_cfg "input_device" "default")
-log "GStreamer will use source device: $GSTREAM_SRC_DEVICE"
-pactl list sources short | grep "$GSTREAM_SRC_DEVICE" || log "Source device '$GSTREAM_SRC_DEVICE' not found in sources list"
+echo "[INFO] GStreamer will use source device: $GSTREAM_SRC_DEVICE"
+pactl list sources short | grep "$GSTREAM_SRC_DEVICE" || echo "[WARN] Source device '$GSTREAM_SRC_DEVICE' not found in sources list"
 
-log() { echo "[INFO] $*"; }
-warn() { echo "[WARN] $*"; }
-err() { echo "[ERROR] $*" >&2; }
 
 # Set up PulseAudio environment
 export PULSE_SERVER=unix:/run/audio/pulse.sock
@@ -32,39 +30,39 @@ for i in {1..10}; do
 done
 
 if ! pactl info > /dev/null 2>&1; then
-  err "Cannot connect to PulseAudio."
+  echo "[ERROR] Cannot connect to PulseAudio."
   exit 1
 fi
 
-log "pactl info output:"
+echo "[INFO] pactl info output:"
 pactl info
 
 # Print available PulseAudio sources (microphones) and sinks (speakers)
-log "Available PulseAudio sources (microphones):"
+echo "[INFO] Available PulseAudio sources (microphones):"
 pactl list sources short || true
-log "Available PulseAudio sinks (speakers):"
+echo "[INFO] Available PulseAudio sinks (speakers):"
 pactl list sinks short || true
 
 # Clean up any existing virtual devices
-log "Cleaning up existing virtual devices..."
+echo "[INFO] Cleaning up existing virtual devices..."
 pactl unload-module module-null-sink 2>/dev/null || true
 pactl unload-module module-virtual-source 2>/dev/null || true
 
 # Create virtual sink for filtered mic
-log "Creating virtual sink: $VIRTUAL_MIC_NAME"
+echo "[INFO] Creating virtual sink: $VIRTUAL_MIC_NAME"
 if pactl load-module module-null-sink sink_name=virtual_mic_sink sink_properties=device.description="$VIRTUAL_MIC_NAME"; then
-  log "Virtual sink created successfully"
+  echo "[INFO] Virtual sink created successfully"
 else
-  err "Failed to create virtual sink"
+  echo "[ERROR] Failed to create virtual sink"
   exit 1
 fi
 
 # Create virtual source from the sink monitor
-log "Creating virtual source..."
+echo "[INFO] Creating virtual source..."
 if pactl load-module module-virtual-source source_name=virtual_mic source_properties=device.description="$VIRTUAL_MIC_NAME" master=virtual_mic_sink.monitor; then
-  log "Virtual source created successfully"
+  echo "[INFO] Virtual source created successfully"
 else
-  err "Failed to create virtual source"
+  echo "[ERROR] Failed to create virtual source"
   exit 1
 fi
 
@@ -72,9 +70,9 @@ sleep 2
 
 # Verify devices were created
 if pactl list sinks short | grep -q virtual_mic_sink && pactl list sources short | grep -q virtual_mic; then
-  log "Virtual microphone devices created successfully"
+  echo "[INFO] Virtual microphone devices created successfully"
 else
-  err "Virtual devices not found after creation"
+  echo "[ERROR] Virtual devices not found after creation"
   pactl list sinks short || true
   pactl list sources short || true
   exit 1
@@ -82,7 +80,7 @@ fi
 
 # Cleanup on exit
 cleanup() {
-  log "Cleaning up virtual devices..."
+  echo "[INFO] Cleaning up virtual devices..."
   pactl unload-module module-null-sink 2>/dev/null || true
   pactl unload-module module-virtual-source 2>/dev/null || true
 }
@@ -91,7 +89,7 @@ trap cleanup EXIT
 # Check required GStreamer plugins
 check_plugin() {
   if ! gst-inspect-1.0 "$1" > /dev/null 2>&1; then
-    err "GStreamer plugin $1 not found. Please install it."
+    echo "[ERROR] GStreamer plugin $1 not found. Please install it."
     exit 1
   fi
 }
@@ -219,8 +217,8 @@ if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
     PIPELINE="$PIPELINE ! $FILTER_CHAIN"
   fi
   PIPELINE="$PIPELINE ! tee name=t t. ! queue ! pulsesink device=$VIRTUAL_MIC_NAME t. ! queue ! pulsesink"
-  log "Output will be routed to both virtual mic and speakers"
+  echo "[INFO] Output will be routed to both virtual mic and speakers"
 fi
 
-log "Launching GStreamer pipeline: $PIPELINE"
+echo "[INFO] Launching GStreamer pipeline: $PIPELINE"
 exec gst-launch-1.0 $PIPELINE
