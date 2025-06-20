@@ -49,5 +49,5 @@ RUN chmod +x /usr/lib/ladspa/librnnoise_ladspa.so \
      /usr/lib/lv2/rnnoise_stereo.lv2/* \
      /usr/lib/vst/*.so \
      /usr/lib/vst3/rnnoise.vst3/*
-     
-CMD [ "run.sh" ]
+
+CMD [ "./run.sh" ]
