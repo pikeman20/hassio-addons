@@ -234,7 +234,7 @@ fi
 PIPELINE_HEAD="pulsesrc device=$DEFAULT_SOURCE ! audioconvert ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
 
 # Bắt đầu xây dựng chuỗi lệnh hoàn chỉnh
-FULL_PIPELINE="$PIPELINE_HEAD"
+FULL_PIPELINE="$PIPELINE_HEAD ! queue"
 if [ -n "$FILTER_CHAIN" ]; then
   FULL_PIPELINE="$FULL_PIPELINE ! $FILTER_CHAIN"
 fi
@@ -251,6 +251,7 @@ else
   FULL_PIPELINE="$FULL_PIPELINE ! pulsesink device=virtual_mic_sink"
   echo "[INFO] Output will be routed to the virtual mic ONLY."
 fi
+
 
 echo "[INFO] Launching GStreamer pipeline: gst-launch-1.0 $FULL_PIPELINE"
 
