@@ -211,8 +211,8 @@ if [ "$(get_cfg "compressor_enabled" "false")" = "true" ]; then
     makeup-gain=$COMPRESSOR_GAIN"
 fi
 
-# Limiter - requires 2 channels input. Outputs whatever it receives if it's stereo.
-# If the pipeline is mono, convert to stereo for the limiter, then back to mono.
+# Limiter - requires 2 channels input. Outputs 2 channels.
+# Always convert to 2 channels BEFORE the limiter, and convert back to main CHANNELS after if needed.
 if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
   THRESH=$(get_cfg "limiter_threshold" "-0.2")
   RELEASE_MS=$(get_cfg "limiter_release_time" "60")
@@ -220,12 +220,14 @@ if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
   RELEASE_S=$(awk "BEGIN {if ($RELEASE_S > 2) print 2; else if ($RELEASE_S < 0.01) print 0.01; else print $RELEASE_S}")
   THRESH=$(awk "BEGIN {if ($THRESH < -20) print -20; else if ($THRESH > 0) print 0; else print $THRESH}")
 
-  if [ "$CURRENT_CHANNELS" -eq 1 ]; then
-    append_filter "audioconvert ! audio/x-raw,channels=2" # Convert to stereo for limiter
-  fi
+  # Convert to 2 channels for the limiter, regardless of CURRENT_CHANNELS
+  append_filter "audioconvert ! audio/x-raw,channels=2"
+  
   append_filter "ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S"
-  if [ "$CURRENT_CHANNELS" -eq 1 ]; then
-    append_filter "audioconvert ! audio/x-raw,channels=1" # Convert back to mono if original was mono
+  
+  # Convert back to the desired CHANNELS (from config) after the limiter, if it's not 2.
+  if [ "$CHANNELS" -ne 2 ]; then
+    append_filter "audioconvert ! audio/x-raw,channels=$CHANNELS"
   fi
 fi
 
