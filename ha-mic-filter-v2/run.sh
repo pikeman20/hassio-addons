@@ -20,6 +20,23 @@ echo "[INFO] Default PulseAudio sink: $DEFAULT_SINK"
 pactl list sources short | grep "$DEFAULT_SOURCE" || echo "[WARN] Default source '$DEFAULT_SOURCE' not found in sources list"
 pactl list sinks short | grep "$DEFAULT_SINK" || echo "[WARN] Default sink '$DEFAULT_SINK' not found in sinks list"
 
+# Extract format for default source
+SOURCE_FORMAT_LINE=$(pactl list sources short | grep "$DEFAULT_SOURCE" | head -n1)
+SOURCE_FORMAT=$(echo "$SOURCE_FORMAT_LINE" | awk '{print $3}')
+SOURCE_SAMPLE=$(echo "$SOURCE_FORMAT_LINE" | awk '{print $4}')
+SOURCE_CHANNELS=$(echo "$SOURCE_SAMPLE" | awk -F' ' '{print $2}' | grep -o '[0-9]\+ch' | grep -o '[0-9]\+')
+SOURCE_RATE=$(echo "$SOURCE_SAMPLE" | awk -F' ' '{print $3}' | grep -o '[0-9]\+Hz' | grep -o '[0-9]\+')
+
+# Extract format for default sink
+SINK_FORMAT_LINE=$(pactl list sinks short | grep "$DEFAULT_SINK" | head -n1)
+SINK_FORMAT=$(echo "$SINK_FORMAT_LINE" | awk '{print $3}')
+SINK_SAMPLE=$(echo "$SINK_FORMAT_LINE" | awk '{print $4}')
+SINK_CHANNELS=$(echo "$SINK_SAMPLE" | awk -F' ' '{print $2}' | grep -o '[0-9]\+ch' | grep -o '[0-9]\+')
+SINK_RATE=$(echo "$SINK_SAMPLE" | awk -F' ' '{print $3}' | grep -o '[0-9]\+Hz' | grep -o '[0-9]\+')
+
+echo "[INFO] Default source format: $SOURCE_FORMAT, channels: $SOURCE_CHANNELS, rate: $SOURCE_RATE"
+echo "[INFO] Default sink format: $SINK_FORMAT, channels: $SINK_CHANNELS, rate: $SINK_RATE"
+
 
 # Set up PulseAudio environment
 export PULSE_SERVER=unix:/run/audio/pulse.sock
@@ -218,7 +235,9 @@ if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
   if [ -n "$FILTER_CHAIN" ]; then
     PIPELINE="$PIPELINE ! $FILTER_CHAIN"
   fi
-  PIPELINE="$PIPELINE ! tee name=t t. ! queue ! pulsesink device=$VIRTUAL_MIC_NAME t. ! queue ! pulsesink device=$DEFAULT_SINK"
+  PIPELINE="$PIPELINE ! tee name=t \
+  t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SOURCE_FORMAT,rate=$SINK_RATE,channels=$SOURCE_CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME \
+  t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SINK_FORMAT,rate=$SINK_RATE,channels=$SINK_CHANNELS ! pulsesink device=$DEFAULT_SINK"
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 fi
 
