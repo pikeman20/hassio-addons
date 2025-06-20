@@ -241,25 +241,26 @@ if [ -n "$FILTER_CHAIN" ]; then
   PIPELINE="$PIPELINE ! $FILTER_CHAIN"
 fi
 
-# Handle monitoring to speakers or direct output to virtual mic
+# Handle monitoring to speakers or direct output to virtual mic# Handle monitoring to speakers or direct output to virtual mic
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
   # Tee splits the main processed stream. The stream coming here is at $SAMPLE_RATE, $CHANNELS
-  PIPELINE="$PIPELINE ! tee name=t"
+  FULL_PIPELINE="$FULL_PIPELINE ! tee name=t"
 
-  # Branch for Virtual Mic: always outputs to the configured SAMPLE_RATE and CHANNELS
-  # No need for extra audioconvert/audioresample if the pipeline is already in desired format
-  # unless s16le format is strictly required by the null-sink, which is often the case.
-  PIPELINE="$PIPELINE t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=s16le,rate=$SAMPLE_RATE,channels=$CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME"
+  # Branch for Virtual Mic: always outputs to the configured SAMPLE_RATE and CHANNELS (s16le format)
+  # REMOVE THE EXPLICIT CAPS FILTER "audio/x-raw,..." HERE
+  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME"
 
   # Branch for Physical Speakers: converts to native sink format
-  PIPELINE="$PIPELINE t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SINK_FORMAT,rate=$SINK_RATE,channels=$SINK_CHANNELS ! pulsesink device=$DEFAULT_SINK"
+  # REMOVE THE EXPLICIT CAPS FILTER "audio/x-raw,..." HERE
+  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$DEFAULT_SINK"
 
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 else
   # If not monitoring to speakers, output directly to virtual mic
-  # Ensure format is s16le, rate=$SAMPLE_RATE, channels=$CHANNELS for virtual mic
-  PIPELINE="$PIPELINE ! audioconvert ! audioresample ! audio/x-raw,format=s16le,rate=$SAMPLE_RATE,channels=$CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME"
+  # REMOVE THE EXPLICIT CAPS FILTER "audio/x-raw,..." HERE
+  FULL_PIPELINE="$FULL_PIPELINE ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME"
 fi
+
 
 echo "[INFO] Launching GStreamer pipeline: $PIPELINE"
 exec gst-launch-1.0 $PIPELINE
