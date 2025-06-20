@@ -50,4 +50,8 @@ RUN chmod +x /usr/lib/ladspa/librnnoise_ladspa.so \
      /usr/lib/vst/*.so \
      /usr/lib/vst3/rnnoise.vst3/*
 
+COPY rootfs/ /
+
+RUN chmod a+x /etc/cont-init.d/*
+
 CMD [ "./run.sh" ]
