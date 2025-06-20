@@ -12,11 +12,13 @@ MONITOR_TO_SPEAKERS=$(get_cfg "monitor_to_speakers" "false")
 SAMPLE_RATE=$(get_cfg "sample_rate" "48000")
 CHANNELS=$(get_cfg "channels" "1")
 
-# Print the PulseAudio source that will be used by GStreamer
-# (removed log function, use echo directly)
-GSTREAM_SRC_DEVICE=$(get_cfg "input_device" "default")
-echo "[INFO] GStreamer will use source device: $GSTREAM_SRC_DEVICE"
-pactl list sources short | grep "$GSTREAM_SRC_DEVICE" || echo "[WARN] Source device '$GSTREAM_SRC_DEVICE' not found in sources list"
+# Detect default PulseAudio source and sink from pactl info
+DEFAULT_SOURCE=$(pactl info | grep "Default Source:" | awk -F': ' '{print $2}')
+DEFAULT_SINK=$(pactl info | grep "Default Sink:" | awk -F': ' '{print $2}')
+echo "[INFO] Default PulseAudio source: $DEFAULT_SOURCE"
+echo "[INFO] Default PulseAudio sink: $DEFAULT_SINK"
+pactl list sources short | grep "$DEFAULT_SOURCE" || echo "[WARN] Default source '$DEFAULT_SOURCE' not found in sources list"
+pactl list sinks short | grep "$DEFAULT_SINK" || echo "[WARN] Default sink '$DEFAULT_SINK' not found in sinks list"
 
 
 # Set up PulseAudio environment
@@ -204,7 +206,7 @@ if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
 fi
 
 # Compose pipeline
-PIPELINE="pulsesrc device=default ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
+PIPELINE="pulsesrc device=$DEFAULT_SOURCE ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
 if [ -n "$FILTER_CHAIN" ]; then
   PIPELINE="$PIPELINE ! $FILTER_CHAIN"
 fi
@@ -212,11 +214,11 @@ PIPELINE="$PIPELINE ! pulsesink device=$VIRTUAL_MIC_NAME"
 
 # Monitor to speakers if enabled
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
-  PIPELINE="pulsesrc device=default ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
+  PIPELINE="pulsesrc device=$DEFAULT_SOURCE ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
   if [ -n "$FILTER_CHAIN" ]; then
     PIPELINE="$PIPELINE ! $FILTER_CHAIN"
   fi
-  PIPELINE="$PIPELINE ! tee name=t t. ! queue ! pulsesink device=$VIRTUAL_MIC_NAME t. ! queue ! pulsesink"
+  PIPELINE="$PIPELINE ! tee name=t t. ! queue ! pulsesink device=$VIRTUAL_MIC_NAME t. ! queue ! pulsesink device=$DEFAULT_SINK"
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 fi
 
