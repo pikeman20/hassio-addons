@@ -234,30 +234,26 @@ fi
 # --- Compose the full GStreamer pipeline ---
 # The pipeline starts with PIPELINE_HEAD (source converted to desired SAMPLE_RATE, CHANNELS)
 # followed by the FILTER_CHAIN.
-
-FULL_PIPELINE="$PIPELINE_HEAD"
+FULL_PIPELINE="$PIPELINE_HEAD" # This should correctly initialize FULL_PIPELINE
 if [ -n "$FILTER_CHAIN" ]; then
-  FULL_PIPELINE="$FULL_PIPELINE ! $FILTER_CHAIN"
+  FULL_PIPELINE="$FULL_PIPELINE ! $FILTER_CHAIN" # This appends the filter chain correctly
 fi
 
 # Handle monitoring to speakers or direct output to virtual mic
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
   # Tee splits the main processed stream. The stream coming here is at $SAMPLE_RATE, $CHANNELS
-  FULL_PIPELINE="$FULL_PIPELINE ! tee name=t"
+  FULL_PIPELINE="$FULL_PIPELINE ! tee name=t" # PROBLEM HERE: You are doing += "! tee name=t"
 
-  # Branch for Virtual Mic: always outputs to the configured SAMPLE_RATE and CHANNELS (s16le format)
-  # Removed explicit caps filter, let pulsesink negotiate.
-  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME"
+  # Branch for Virtual Mic
+  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME" # PROBLEM HERE: += "! t. ! queue..."
 
-  # Branch for Physical Speakers: converts to native sink format
-  # Removed explicit caps filter, let pulsesink negotiate.
-  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$DEFAULT_SINK"
+  # Branch for Physical Speakers
+  FULL_PIPELINE="$FULL_PIPELINE t. ! queue ! audioconvert ! audioresample ! pulsesink device=$DEFAULT_SINK" # PROBLEM HERE: += "! t. ! queue..."
 
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 else
   # If not monitoring to speakers, output directly to virtual mic
-  # Removed explicit caps filter, let pulsesink negotiate.
-  FULL_PIPELINE="$FULL_PIPELINE ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME"
+  FULL_PIPELINE="$FULL_PIPELINE ! audioconvert ! audioresample ! pulsesink device=$VIRTUAL_MIC_NAME" # PROBLEM HERE: += "! audioconvert..."
 fi
 
 echo "[INFO] Launching GStreamer pipeline: **$FULL_PIPELINE**"
