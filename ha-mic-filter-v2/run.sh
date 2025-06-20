@@ -257,4 +257,5 @@ else
 fi
 
 echo "[INFO] Launching GStreamer pipeline: **$FULL_PIPELINE**"
-exec gst-launch-1.0 $FULL_PIPELINE
+set -- $FULL_PIPELINE
+exec gst-launch-1.0 "$@"
