@@ -68,21 +68,26 @@ pactl unload-module module-null-sink 2>/dev/null || true
 pactl unload-module module-virtual-source 2>/dev/null || true
 
 # Create virtual sink for filtered mic
-echo "[INFO] Creating virtual sink: $VIRTUAL_MIC_NAME"
-if pactl load-module module-null-sink sink_name=virtual_mic_sink sink_properties=device.description="$VIRTUAL_MIC_NAME"; then
-  echo "[INFO] Virtual sink created successfully"
+echo "[INFO] Creating virtual sink: $VIRTUAL_MIC_NAME with rate=$SAMPLE_RATE, channels=$CHANNELS"
+if pactl load-module module-null-sink \
+   sink_name=virtual_mic_sink \
+   sink_properties="device.description='$VIRTUAL_MIC_NAME' rate=$SAMPLE_RATE channels=$CHANNELS"; then
+    echo "[INFO] Virtual sink created successfully"
 else
-  echo "[ERROR] Failed to create virtual sink"
-  exit 1
+    echo "[ERROR] Failed to create virtual sink"
+    exit 1
 fi
 
 # Create virtual source from the sink monitor
 echo "[INFO] Creating virtual source..."
-if pactl load-module module-virtual-source source_name=virtual_mic source_properties=device.description="$VIRTUAL_MIC_NAME" master=virtual_mic_sink.monitor; then
-  echo "[INFO] Virtual source created successfully"
+if pactl load-module module-virtual-source \
+   source_name=virtual_mic \
+   source_properties="device.description='$VIRTUAL_MIC_NAME' rate=$SAMPLE_RATE channels=$CHANNELS" \
+   master=virtual_mic_sink.monitor; then
+    echo "[INFO] Virtual source created successfully"
 else
-  echo "[ERROR] Failed to create virtual source"
-  exit 1
+    echo "[ERROR] Failed to create virtual source"
+    exit 1
 fi
 
 sleep 2
@@ -217,9 +222,8 @@ if [ "$(get_cfg "limiter_enabled" "false")" = "true" ]; then
     RELEASE_S=0.01
   fi
   THRESH=$(awk "BEGIN {if ($THRESH < -20) print -20; else if ($THRESH > 0) print 0; else print $THRESH}")
-  append_filter "audioconvert ! audio/x-raw,channels=2 ! \
-    ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S ! \
-    audioconvert ! audio/x-raw,channels=1"
+  # LADSPA Fast Lookahead Limiter requires 2 channels input
+  append_filter "audioconvert ! audio/x-raw,channels=2 ! ladspa-fast-lookahead-limiter-1913-so-fastlookaheadlimiter limit=$THRESH release-time=$RELEASE_S"
 fi
 
 # Compose pipeline
@@ -229,16 +233,21 @@ if [ -n "$FILTER_CHAIN" ]; then
 fi
 PIPELINE="$PIPELINE ! pulsesink device=$VIRTUAL_MIC_NAME"
 
-# Monitor to speakers if enabled
+# Handle monitoring to speakers# Handle monitoring to speakers or direct output to virtual mic
 if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
-  PIPELINE="pulsesrc device=$DEFAULT_SOURCE ! audioresample ! audio/x-raw,rate=$SAMPLE_RATE,channels=$CHANNELS"
-  if [ -n "$FILTER_CHAIN" ]; then
-    PIPELINE="$PIPELINE ! $FILTER_CHAIN"
-  fi
-  PIPELINE="$PIPELINE ! tee name=t \
-  t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SOURCE_FORMAT,rate=$SOURCE_RATE,channels=$SOURCE_CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME \
-  t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SINK_FORMAT,rate=$SINK_RATE,channels=$SINK_CHANNELS ! pulsesink device=$DEFAULT_SINK"
+  # Add tee for branching
+  PIPELINE="$PIPELINE ! tee name=t"
+
+  # Branch for Virtual Mic
+  PIPELINE="$PIPELINE t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=s16le,rate=$SAMPLE_RATE,channels=$CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME"
+
+  # Branch for Physical Speakers
+  PIPELINE="$PIPELINE t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SINK_FORMAT,rate=$SINK_RATE,channels=$SINK_CHANNELS ! pulsesink device=$DEFAULT_SINK"
+
   echo "[INFO] Output will be routed to both virtual mic and speakers"
+else
+  # If not monitoring to speakers, output directly to virtual mic
+  PIPELINE="$PIPELINE ! audioconvert ! audioresample ! audio/x-raw,format=s16le,rate=$SAMPLE_RATE,channels=$CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME"
 fi
 
 echo "[INFO] Launching GStreamer pipeline: $PIPELINE"
