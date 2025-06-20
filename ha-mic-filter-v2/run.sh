@@ -236,7 +236,7 @@ if [ "$MONITOR_TO_SPEAKERS" = "true" ]; then
     PIPELINE="$PIPELINE ! $FILTER_CHAIN"
   fi
   PIPELINE="$PIPELINE ! tee name=t \
-  t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SOURCE_FORMAT,rate=$SINK_RATE,channels=$SOURCE_CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME \
+  t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SOURCE_FORMAT,rate=$SOURCE_RATE,channels=$SOURCE_CHANNELS ! pulsesink device=$VIRTUAL_MIC_NAME \
   t. ! queue ! audioconvert ! audioresample ! audio/x-raw,format=$SINK_FORMAT,rate=$SINK_RATE,channels=$SINK_CHANNELS ! pulsesink device=$DEFAULT_SINK"
   echo "[INFO] Output will be routed to both virtual mic and speakers"
 fi
