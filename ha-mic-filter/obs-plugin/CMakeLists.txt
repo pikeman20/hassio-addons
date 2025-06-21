@@ -5,18 +5,18 @@ project(obs-mic-filter VERSION 1.0.0 LANGUAGES C)
 # Remove C++ standard settings since we only use C
 
 # Check if RNNoise source files exist locally (for ha-mic-filter)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../rnnoise/src")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/./rnnoise/src")
     # Use local RNNoise source files for ha-mic-filter
     set(RNNOISE_SOURCES
-        ../rnnoise/src/celt_lpc.c
-        ../rnnoise/src/denoise.c
-        ../rnnoise/src/kiss_fft.c
-        ../rnnoise/src/pitch.c
-        ../rnnoise/src/rnn.c
-        ../rnnoise/src/rnn_data.c
-        ../rnnoise/src/rnn_reader.c
+        ./rnnoise/src/celt_lpc.c
+        ./rnnoise/src/denoise.c
+        ./rnnoise/src/kiss_fft.c
+        ./rnnoise/src/pitch.c
+        ./rnnoise/src/rnn.c
+        ./rnnoise/src/rnn_data.c
+        ./rnnoise/src/rnn_reader.c
     )
-    set(RNNOISE_INCLUDE_DIR ../rnnoise/include)
+    set(RNNOISE_INCLUDE_DIR ./rnnoise/include)
 else()
     # Use OBS Studio RNNoise source files
     set(RNNOISE_SOURCES

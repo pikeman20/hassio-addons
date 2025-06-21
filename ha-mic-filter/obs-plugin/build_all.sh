@@ -43,7 +43,7 @@ if [ ! -f "CMakeLists.txt" ]; then
 fi
 
 # Check if OBS studio directory exists
-if [ ! -d "../obs-studio/plugins/obs-filters/rnnoise" ]; then
+if [ ! -d "./rnnoise" ]; then
     print_error "RNNoise source not found. Make sure obs-studio is in the parent directory."
     exit 1
 fi
