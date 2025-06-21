@@ -37,9 +37,6 @@ typedef struct {
     eq_channel_state_t* eqs; // Array of per-channel state
 } eq_filter_data_t;
 
-static float db_to_mul(float db) {
-    return powf(10.0f, db / 20.0f);
-}
 
 void* filter_wrapper_eq_create(const obs_pipeline_config_t* config)
 {

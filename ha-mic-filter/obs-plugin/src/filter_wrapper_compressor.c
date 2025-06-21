@@ -19,13 +19,7 @@ typedef struct {
     float release_coeff;
 } compressor_filter_data_t;
 
-static inline float db_to_mul(float db) {
-    return powf(10.0f, db / 20.0f);
-}
 
-static inline float mul_to_db(float mul) {
-    return 20.0f * log10f(mul + 1e-20f);
-}
 
 void* filter_wrapper_compressor_create(const obs_pipeline_config_t* config)
 {

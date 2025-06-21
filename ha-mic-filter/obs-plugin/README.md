@@ -27,17 +27,20 @@ Each OBS filter has been wrapped to remove OBS dependencies:
 
 ## Supported Filters
 
-| Filter Type | Status | Description |
-|-------------|--------|-------------|
-| Gain | ✅ Implemented | Volume/gain adjustment (-30dB to +30dB) |
-| Noise Suppression | 🚧 Stub | Noise reduction (RNNoise/Speex/NVAFX) |
-| Noise Gate | 🚧 Stub | Gate with threshold control |
-| Compressor | 🚧 Stub | Dynamic range compressor |
-| Limiter | 🚧 Stub | Audio limiting |
-| Expander | 🚧 Stub | Audio expansion/gating |
-| Upward Compressor | 🚧 Stub | Upward compression |
-| 3-Band Equalizer | 🚧 Stub | Low/Mid/High frequency bands |
-| Invert Polarity | 🚧 Stub | Audio polarity inversion |
+| Filter Type         | Status         | Description                           |
+|---------------------|---------------|---------------------------------------|
+| Gain                | ✅ Implemented | Volume/gain adjustment (-30dB to +30dB) |
+| Noise Suppression   | ⚠️ Partial    | Noise reduction (RNNoise/Speex/NVAFX) |
+| Noise Gate          | ⚠️ Partial    | Gate with threshold control           |
+| Compressor          | ⚠️ Partial    | Dynamic range compressor              |
+| Limiter             | 🚧 Stub       | Audio limiting                        |
+| Expander            | ⚠️ Partial    | Audio expansion/gating                |
+| Upward Compressor   | 🚧 Stub       | Upward compression                    |
+| 3-Band Equalizer    | ⚠️ Partial    | Low/Mid/High frequency bands          |
+| Invert Polarity     | 🚧 Stub       | Audio polarity inversion              |
+
+**Legend:**  
+✅ Fully implemented ⚠️ In progress/partial 🚧 Stub/not implemented
 
 ## API Usage
 
@@ -126,16 +129,28 @@ cmake --build .
 - **SpeexDSP**: Alternative noise suppression method
 - **NVAFX**: NVIDIA audio effects (Windows only)
 
+## Python Testing
+
+A Python script is provided for real-time testing and prototyping:
+
+- [`python_realtime_test.py`](ha-mic-filter/ha-mic-filter/obs-plugin/python_realtime_test.py:1):  
+  Allows you to process audio streams through the filter pipeline using Python.  
+  Requires `numpy` and `sounddevice`.
+
+**Example usage:**
+```bash
+python python_realtime_test.py --filter gain --gain_db 6
+```
+
 ## Implementation Status
 
-This is the initial skeleton implementation focusing on:
 - ✅ Project structure and build system
 - ✅ Public API definition
 - ✅ Pipeline management framework
 - ✅ Filter wrapper architecture
 - ✅ Memory and audio utilities
 - ✅ Basic gain filter implementation
-- 🚧 DSP implementations for other filters (TODO)
+- ⚠️ DSP implementations for other filters (in progress)
 
 ## Next Steps
 
@@ -156,12 +171,20 @@ obs-mic-filter/
 │   ├── pipeline_manager.c      # Pipeline management
 │   ├── memory_utils.c          # Memory utilities
 │   ├── audio_utils.c           # Audio processing utilities
-│   └── filter_wrapper_*.c     # Individual filter implementations
+│   └── filter_wrapper_*.c      # Individual filter implementations
 ├── examples/
 │   └── simple_test.c           # Basic usage example
+├── python_realtime_test.py     # Python real-time test script
 ├── CMakeLists.txt              # Build configuration
 └── README.md                   # This file
 ```
+
+## Contributing & Testing
+
+Contributions are welcome!  
+- Please open issues or pull requests for bug fixes, improvements, or new features.
+- To test filters, use the provided Python script or add C tests in the `examples/` directory.
+- Ensure code style and documentation are consistent with the project.
 
 ## License
 

@@ -178,14 +178,7 @@ static void analyze_envelope(expander_filter_data_t* data, float **samples, uint
     }
 }
 
-static inline float db_to_mul(float db) {
-    return powf(10.0f, db / 20.0f);
-}
 
-static inline float mul_to_db(float mul) {
-    if (mul <= 0.000001f) return -120.0f;
-    return 20.0f * log10f(mul);
-}
 
 static void process_expansion(expander_filter_data_t* data, float **samples, uint32_t num_samples, int channels)
 {

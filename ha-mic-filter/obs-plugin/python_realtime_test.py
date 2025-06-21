@@ -48,7 +48,7 @@ class RealTimeAudioProcessor:
         print("Available audio devices:")
         for i in range(self.audio.get_device_count()):
             info = self.audio.get_device_info_by_index(i)
-            print(f"  {i}: {info['name']} (inputs: {info['maxInputChannels']}, outputs: {info['maxOutputChannels']})")
+            print(f"  {i}: {info['name']} (inputs: {info['maxInputChannels']}, outputs: {info['maxOutputChannels']}), bitrate: {int(info['defaultSampleRate'])} Hz")
         print()
     
     def setup_pipeline(self):
@@ -372,12 +372,26 @@ def main():
         
         # List available audio devices
         processor.list_audio_devices()
-        
+
+        # Prompt for input device
+        try:
+            input_device = input("Select input device index (Enter for default): ").strip()
+            input_device = int(input_device) if input_device else None
+        except Exception:
+            input_device = None
+
+        # Prompt for output device
+        try:
+            output_device = input("Select output device index (Enter for default): ").strip()
+            output_device = int(output_device) if output_device else None
+        except Exception:
+            output_device = None
+
         # Setup the processing pipeline
         processor.setup_pipeline()
-        
+
         # Start real-time processing
-        processor.start_streaming()
+        processor.start_streaming(input_device=input_device, output_device=output_device)
         
     except Exception as e:
         print(f"Error: {e}")
