@@ -21,10 +21,10 @@ data_files = list(data_dir.rglob("*.pv")) + list(data_dir.rglob("*.ppn"))
 setup(
     name="wyoming_porcupine",
     version="1.1.0",
-    description="Wyoming Server for Porcupine 1",
-    url="http://github.com/rhasspy/wyoming-porcupine",
-    author="Michael Hansen",
-    author_email="mike@rhasspy.org",
+    description="Wyoming Server for Porcupine 3",
+    url="https://github.com/pikeman20/hassio-addons",
+    author="Pike",
+    author_email="pikeman20@github.com",
     license="MIT",
     packages=setuptools.find_packages(),
     package_data={
@@ -42,5 +42,5 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ],
-    keywords="rhasspy wyoming porcupine wake word",
+    keywords="wyoming porcupine 3 wake word",
 )
