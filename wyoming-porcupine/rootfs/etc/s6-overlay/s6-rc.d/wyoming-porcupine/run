@@ -5,6 +5,7 @@
 # Start wyoming-porcupine service
 # ==============================================================================
 
+printf "Starting Wyoming Porcupine service..."
 flags=()
 
 if bashio::config.true 'debug_logging'; then
