@@ -5,6 +5,7 @@ FROM ${BUILD_FROM}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 WORKDIR /usr/src
+COPY . /wyoming-porcupine
 ARG WYOMING_PORCUPINE_VERSION
 ENV PIP_BREAK_SYSTEM_PACKAGES=1
 
@@ -18,7 +19,7 @@ RUN \
     && pip3 install --no-cache-dir -U \
         setuptools \
         wheel \
-    && pip3 install --no-cache-dir . \
+    && pip3 install --no-cache-dir /wyoming-porcupine \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /

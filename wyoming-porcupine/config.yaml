@@ -1,9 +1,9 @@
 ---
-version: 1.0.0
+version: 1.0.1
 slug: wyoming-porcupine3
 name: Wyoming Porcupine3
 description: Porcupine 3.0 wake word detection using the Wyoming protocol
-url: https://github.com/home-assistant/addons
+url: https://github.com/pikeman20/hassio-addons
 arch:
   - amd64
   - aarch64
