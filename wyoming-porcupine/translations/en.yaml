@@ -1,0 +1,16 @@
+---
+configuration:
+  system:
+    name: System
+    description: Platform for Porcupine (linux or raspberry-pi)
+  sensitivity:
+    name: Sensitivity
+    description: Detection sensitivity (0.0 - 1.0, default 0.5)
+  access_key:
+    name: Access Key
+    description: Your Porcupine access key (required)
+  debug_logging:
+    name: Debug logging
+    description: Enable debug logging for troubleshooting.
+network:
+  11500/tcp: Wyoming Porcupine Wyoming Protocol

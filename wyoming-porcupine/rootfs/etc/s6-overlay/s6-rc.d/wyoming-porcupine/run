@@ -1,0 +1,19 @@
+#!/command/with-contenv bashio
+# vim: ft=bash
+# shellcheck shell=bash
+# ==============================================================================
+# Start wyoming-porcupine service
+# ==============================================================================
+
+flags=()
+
+if bashio::config.true 'debug_logging'; then
+    flags+=('--debug')
+fi
+
+exec wyoming-porcupine \
+    --system "$(bashio::config 'system')" \
+    --sensitivity "$(bashio::config 'sensitivity')" \
+    --access-key "$(bashio::config 'access_key')" \
+    --uri "tcp://0.0.0.0:11500" \
+    ${flags[@]}
