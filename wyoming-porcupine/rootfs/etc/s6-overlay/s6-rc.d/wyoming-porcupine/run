@@ -12,7 +12,7 @@ if bashio::config.true 'debug_logging'; then
     flags+=('--debug')
 fi
 
-exec wyoming-porcupine \
+exec python -m wyoming-porcupine \
     --system "$(bashio::config 'system')" \
     --sensitivity "$(bashio::config 'sensitivity')" \
     --access-key "$(bashio::config 'access_key')" \
