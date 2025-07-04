@@ -1,5 +1,5 @@
 ---
-version: 1.0.6
+version: 1.0.7
 slug: wyoming-porcupine3
 name: Wyoming Porcupine3
 description: Porcupine 3.0 wake word detection using the Wyoming protocol
