@@ -1,2 +1,2 @@
 pvporcupine @ git+https://github.com/pikeman20/pvporcupine.git
-wyoming>=1.2.0
+wyoming==1.2.0
