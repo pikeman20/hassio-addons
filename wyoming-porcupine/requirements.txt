@@ -1,2 +1,2 @@
-git+https://github.com/pikeman20/pvporcupine.git#egg=pvporcupine
-wyoming==1.2.0
+pvporcupine @ git+https://github.com/pikeman20/pvporcupine.git
+wyoming>=1.2.0
