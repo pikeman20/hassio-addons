@@ -12,14 +12,17 @@ ENV PIP_BREAK_SYSTEM_PACKAGES=1
 RUN \
     apt-get update \
     && apt-get install -y --no-install-recommends \
+        git \
         netcat-traditional \
         python3 \
         python3-pip \
         libopenblas0 \
     && pip3 install --no-cache-dir -U \
         setuptools \
-        wheel \
-    && pip3 install --no-cache-dir /wyoming-porcupine \
+        wheel 
+
+RUN \
+    pip3 install --no-cache-dir /wyoming-porcupine \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /
