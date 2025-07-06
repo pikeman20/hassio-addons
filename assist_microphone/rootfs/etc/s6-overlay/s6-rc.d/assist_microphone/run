@@ -1,0 +1,33 @@
+#!/command/with-contenv bashio
+# vim: ft=bash
+# shellcheck shell=bash
+# ==============================================================================
+# Start service
+# ==============================================================================
+extra_args=()
+if bashio::config.true 'debug_logging'; then
+    extra_args+=('--debug')
+fi
+
+mic_command="$(bashio::config 'mic_command' 'arecord -r 16000 -c 1 -f S16_LE -t raw')"
+snd_command="$(bashio::config 'snd_command' 'aplay -r 16000 -c 1 -f S16_LE -t raw')"
+snd_command_rate="$(bashio::config 'snd_command_rate' '16000')"
+
+if bashio::config.true 'sound_enabled'; then
+    extra_args+=('--snd-command' "${snd_command}")
+fi
+
+exec python3 -m wyoming_satellite \
+    --name 'assist microphone local' \
+    --uri 'tcp://0.0.0.0:11700' \
+    --mic-command "${mic_command}" \
+    --snd-command-rate "${snd_command_rate}" \
+    --awake-wav "$(bashio::config 'awake_wav')" \
+    --done-wav "$(bashio::config 'done_wav')" \
+    --timer-finished-wav "$(bashio::config 'timer_finished_wav')" \
+    --timer-finished-wav-repeat "$(bashio::config 'timer_repeat_count')" "$(bashio::config 'timer_repeat_delay')" \
+    --mic-volume-multiplier "$(bashio::config 'mic_volume_multiplier')" \
+    --snd-volume-multiplier "$(bashio::config 'sound_volume_multiplier')" \
+    --mic-auto-gain "$(bashio::config 'auto_gain')" \
+    --mic-noise-suppression "$(bashio::config 'noise_suppression')" \
+    --no-zeroconf "${extra_args[@]}"
