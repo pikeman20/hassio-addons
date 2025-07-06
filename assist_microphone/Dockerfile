@@ -31,6 +31,8 @@ COPY sounds/ ./sounds/
 WORKDIR /
 COPY rootfs /
 
+RUN chmod -R a+x /etc/s6-overlay/s6-rc.d
+
 HEALTHCHECK --start-period=10m \
     CMD echo '{ "type": "describe" }' \
         | nc -w 1 localhost 10700 \
