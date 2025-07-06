@@ -35,6 +35,6 @@ RUN chmod -R a+x /etc/s6-overlay/s6-rc.d
 
 HEALTHCHECK --start-period=10m \
     CMD echo '{ "type": "describe" }' \
-        | nc -w 1 localhost 10700 \
+        | nc -w 1 localhost 11700 \
         | grep -q "assist" \
         || exit 1

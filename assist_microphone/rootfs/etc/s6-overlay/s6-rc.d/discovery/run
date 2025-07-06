@@ -12,12 +12,12 @@ bash -c \
     "until
         echo 'Try send event'
         echo '{ \"type\": \"describe\" }' 
-            > /dev/tcp/localhost/10700; do sleep 0.5;
+            > /dev/tcp/localhost/11700; do sleep 0.5;
     done" > /dev/null 2>&1 || true;
 
 config=$(\
     bashio::var.json \
-        uri "tcp://$(hostname):10700" \
+        uri "tcp://$(hostname):11700" \
 )
 
 if bashio::discovery "wyoming" "${config}" > /dev/null; then
