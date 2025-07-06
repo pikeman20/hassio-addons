@@ -78,7 +78,7 @@ if bashio::config.true 'use_tcp_pulse'; then
     # Event-driven reload with debounce and backoff
     pactl subscribe | while read -r event; do
         now=$(date +%s)
-        if echo "$event" | grep -q -E "remove|new|change|server"; then
+        if echo "$event" | grep -q -E "remove"; then
             if [ $((now - last_reload)) -ge $DEBOUNCE_INTERVAL ]; then
                 log "PulseAudio event detected: $event"
                 reload_remote_pulse
