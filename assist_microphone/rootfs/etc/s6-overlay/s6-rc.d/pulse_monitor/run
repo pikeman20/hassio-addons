@@ -1,0 +1,115 @@
+#!/command/with-contenv bashio
+
+LOG_FILE="/var/log/pulse_monitor.log"
+touch "$LOG_FILE"
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+}
+
+# Optimized, non-configurable parameters for robust operation
+DEBOUNCE_INTERVAL=5
+PERIODIC_INTERVAL=60
+MAX_FAILURES=10
+MAX_BACKOFF=300
+
+if bashio::config.true 'use_tcp_pulse'; then
+    REMOTE_HOST="$(bashio::config 'tcp_pulse_host')"
+    PULSE_PORT="$(bashio::config 'tcp_pulse_port' '4713')"
+    SINK_NAME="$(bashio::config 'sink_name' 'remote_speaker_win')"
+    SOURCE_NAME="$(bashio::config 'source_name' 'remote_mic_win')"
+
+    reload_lock="/tmp/pulse_monitor_reload.lock"
+    failure_count=0
+    backoff=5
+
+    health_check() {
+        pactl info | grep -q "${SINK_NAME}" && pactl info | grep -q "${SOURCE_NAME}"
+    }
+
+    reload_remote_pulse() {
+        # Prevent overlapping reloads
+        exec 9>"$reload_lock"
+        if ! flock -n 9; then
+            log "Reload already in progress, skipping."
+            return 99
+        fi
+
+        REMOTE_IP=$(getent hosts "${REMOTE_HOST}" | awk '{ print $1 }' | head -n 1)
+        if [ -z "${REMOTE_IP}" ]; then
+            log "ERROR: Could not resolve IP for ${REMOTE_HOST}. Cannot setup remote audio."
+            ((failure_count++))
+            return 1
+        fi
+
+        if ! timeout 1 bash -c "</dev/tcp/${REMOTE_IP}/${PULSE_PORT}" 2>/dev/null; then
+            log "WARNING: PulseAudio port ${PULSE_PORT} on ${REMOTE_IP} (${REMOTE_HOST}) is not open or reachable."
+            ((failure_count++))
+            return 2
+        fi
+
+        log "Unloading and reloading tunnel sink: ${SINK_NAME}"
+        pactl unload-module module-tunnel-sink "${SINK_NAME}" 2>/dev/null || true
+        pactl load-module module-tunnel-sink server="${REMOTE_IP}" sink_name="${SINK_NAME}" && \
+            pactl set-default-sink "${SINK_NAME}"
+
+        log "Unloading and reloading tunnel source: ${SOURCE_NAME}"
+        pactl unload-module module-tunnel-source "${SOURCE_NAME}" 2>/dev/null || true
+        pactl load-module module-tunnel-source server="${REMOTE_IP}" source_name="${SOURCE_NAME}" && \
+            pactl set-default-source "${SOURCE_NAME}"
+
+        # Health check
+        if health_check; then
+            log "Health check passed: sink/source loaded."
+            failure_count=0
+            backoff=5
+        else
+            log "ERROR: Health check failed after reload."
+            ((failure_count++))
+            return 3
+        fi
+    }
+
+    # Initial setup
+    reload_remote_pulse
+
+    last_reload=0
+
+    # Event-driven reload with debounce and backoff
+    pactl subscribe | while read -r event; do
+        now=$(date +%s)
+        if echo "$event" | grep -q -E "remove|new|change|server"; then
+            if [ $((now - last_reload)) -ge $DEBOUNCE_INTERVAL ]; then
+                log "PulseAudio event detected: $event"
+                reload_remote_pulse
+                last_reload=$now
+                if [ "$failure_count" -ge "$MAX_FAILURES" ]; then
+                    log "CRITICAL: Too many consecutive failures ($failure_count). Backing off for $backoff seconds."
+                    sleep "$backoff"
+                    backoff=$((backoff * 2))
+                    if [ "$backoff" -gt "$MAX_BACKOFF" ]; then
+                        backoff="$MAX_BACKOFF"
+                    fi
+                fi
+            else
+                log "Event ignored due to debounce: $event"
+            fi
+        fi
+    done &
+
+    # Fallback: periodic check with backoff and failure limit
+    while true; do
+        sleep "$PERIODIC_INTERVAL"
+        reload_remote_pulse
+        if [ "$failure_count" -ge "$MAX_FAILURES" ]; then
+            log "CRITICAL: Too many consecutive failures ($failure_count). Backing off for $backoff seconds."
+            sleep "$backoff"
+            backoff=$((backoff * 2))
+            if [ "$backoff" -gt "$MAX_BACKOFF" ]; then
+                backoff="$MAX_BACKOFF"
+            fi
+        fi
+    done
+else
+    while true; do sleep 3600; done
+fi

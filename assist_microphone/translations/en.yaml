@@ -60,3 +60,21 @@ configuration:
     name: Speaker sample rate
     description: >-
       Sample rate for speaker output (default: 16000).
+  use_tcp_pulse:
+    name: Use TCP Pulse server
+    description: Enable audio and microphone via TCP Pulse server.
+  tcp_pulse_host:
+    name: TCP Pulse server host
+    description: Hostname or IP address of the TCP Pulse server.
+  tcp_pulse_port:
+    name: TCP Pulse server port
+    description: >-
+      Port for the TCP Pulse server (default: 4713).
+  sink_name:
+    name: PulseAudio sink name
+    description: >-
+      Name of the PulseAudio sink for remote speaker (default: remote_speaker_win).
+  source_name:
+    name: PulseAudio source name
+    description: >-
+      Name of the PulseAudio source for remote microphone (default: remote_mic_win).
