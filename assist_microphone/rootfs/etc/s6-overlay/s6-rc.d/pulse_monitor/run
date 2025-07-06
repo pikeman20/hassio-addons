@@ -19,22 +19,40 @@ if bashio::config.true 'use_tcp_pulse'; then
     SINK_NAME="$(bashio::config 'sink_name' 'remote_speaker_win')"
     SOURCE_NAME="$(bashio::config 'source_name' 'remote_mic_win')"
 
-    reload_lock="/tmp/pulse_monitor_reload.lock"
     failure_count=0
     backoff=5
 
     health_check() {
-        pactl info | grep -q "${SINK_NAME}" && pactl info | grep -q "${SOURCE_NAME}"
+        # Check sink and source exist in pactl info
+        pactl info | grep -q "${SINK_NAME}" || return 1
+        pactl info | grep -q "${SOURCE_NAME}" || return 1
+
+        # Check if using tunnel modules (remote)
+        local is_tunnel_sink=0
+        local is_tunnel_source=0
+        pactl list modules short | grep -q "module-tunnel-sink.*sink_name=${SINK_NAME}" && is_tunnel_sink=1
+        pactl list modules short | grep -q "module-tunnel-source.*source_name=${SOURCE_NAME}" && is_tunnel_source=1
+
+        if [ "$is_tunnel_sink" -eq 1 ]; then
+            # For tunnel sink, check module is loaded and state is RUNNING/IDLE
+            pactl list sinks | awk '/^Sink #/ {sink=1} sink && /Name: / {name=$2; sink=0} sink && /State: / {state=$2; if (name=="'"${SINK_NAME}"'" && state!="RUNNING" && state!="IDLE") exit 4}' || return 4
+        else
+            pactl list short sinks | grep -q "${SINK_NAME}" || return 2
+            pactl list sinks | awk '/^Sink #/ {sink=1} sink && /Name: / {name=$2; sink=0} sink && /State: / {state=$2; if (name=="'"${SINK_NAME}"'" && state!="RUNNING" && state!="IDLE") exit 5}' || return 5
+        fi
+
+        if [ "$is_tunnel_source" -eq 1 ]; then
+            # For tunnel source, check module is loaded and state is RUNNING/IDLE
+            pactl list sources | awk '/^Source #/ {src=1} src && /Name: / {name=$2; src=0} src && /State: / {state=$2; if (name=="'"${SOURCE_NAME}"'" && state!="RUNNING" && state!="IDLE") exit 6}' || return 6
+        else
+            pactl list short sources | grep -q "${SOURCE_NAME}" || return 3
+            pactl list sources | awk '/^Source #/ {src=1} src && /Name: / {name=$2; src=0} src && /State: / {state=$2; if (name=="'"${SOURCE_NAME}"'" && state!="RUNNING" && state!="IDLE") exit 7}' || return 7
+        fi
+
+        return 0
     }
 
     reload_remote_pulse() {
-        # Prevent overlapping reloads
-        exec 9>"$reload_lock"
-        if ! flock -n 9; then
-            log "Reload already in progress, skipping."
-            return 99
-        fi
-
         REMOTE_IP=$(getent hosts "${REMOTE_HOST}" | awk '{ print $1 }' | head -n 1)
         if [ -z "${REMOTE_IP}" ]; then
             log "ERROR: Could not resolve IP for ${REMOTE_HOST}. Cannot setup remote audio."
@@ -100,7 +118,10 @@ if bashio::config.true 'use_tcp_pulse'; then
     # Fallback: periodic check with backoff and failure limit
     while true; do
         sleep "$PERIODIC_INTERVAL"
-        reload_remote_pulse
+        if ! health_check; then
+            log "Periodic health check failed, reloading remote pulse"
+            reload_remote_pulse
+        fi
         if [ "$failure_count" -ge "$MAX_FAILURES" ]; then
             log "CRITICAL: Too many consecutive failures ($failure_count). Backing off for $backoff seconds."
             sleep "$backoff"
