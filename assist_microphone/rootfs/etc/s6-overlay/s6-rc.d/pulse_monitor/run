@@ -103,8 +103,8 @@ if bashio::config.true 'use_tcp_pulse'; then
     pactl subscribe | while read -r event; do
         now=$(date +%s)
         if echo "$event" | grep -q -E "remove"; then
-            # Ignore remove events from clients
-            if echo "$event" | grep -q "client"; then
+            # Only catch remove events for sink, source, card, or module
+            if ! echo "$event" | grep -q -E "sink|source|card|module"; then
                 continue
             fi
             if [ $((now - last_reload)) -ge $DEBOUNCE_INTERVAL ]; then
