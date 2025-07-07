@@ -1,10 +1,10 @@
 #!/command/with-contenv bashio
 
-LOG_FILE="/var/log/pulse_monitor.log"
-touch "$LOG_FILE"
+# LOG_FILE="/var/log/pulse_monitor.log"
+# touch "$LOG_FILE"
 
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" | tee -a "$LOG_FILE"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
 }
 
 # Optimized, non-configurable parameters for robust operation
@@ -67,12 +67,18 @@ if bashio::config.true 'use_tcp_pulse'; then
         fi
 
         log "Unloading and reloading tunnel sink: ${SINK_NAME}"
-        pactl unload-module module-tunnel-sink "${SINK_NAME}" 2>/dev/null || true
+        # Unload all module-tunnel-sink with this sink_name
+        for module_id in $(pactl list modules short | awk '/module-tunnel-sink.*sink_name='"${SINK_NAME}"'/ {print $1}'); do
+            pactl unload-module "$module_id" 2>/dev/null || true
+        done
         pactl load-module module-tunnel-sink server="${REMOTE_IP}" sink_name="${SINK_NAME}" && \
             pactl set-default-sink "${SINK_NAME}"
 
         log "Unloading and reloading tunnel source: ${SOURCE_NAME}"
-        pactl unload-module module-tunnel-source "${SOURCE_NAME}" 2>/dev/null || true
+        # Unload all module-tunnel-source with this source_name
+        for module_id in $(pactl list modules short | awk '/module-tunnel-source.*source_name='"${SOURCE_NAME}"'/ {print $1}'); do
+            pactl unload-module "$module_id" 2>/dev/null || true
+        done
         pactl load-module module-tunnel-source server="${REMOTE_IP}" source_name="${SOURCE_NAME}" && \
             pactl set-default-source "${SOURCE_NAME}"
 
@@ -99,7 +105,10 @@ if bashio::config.true 'use_tcp_pulse'; then
         if echo "$event" | grep -q -E "remove"; then
             if [ $((now - last_reload)) -ge $DEBOUNCE_INTERVAL ]; then
                 log "PulseAudio event detected: $event"
-                reload_remote_pulse
+                if ! health_check; then
+                    log "Event health check failed, reloading remote pulse"
+                    reload_remote_pulse
+                fi
                 last_reload=$now
                 if [ "$failure_count" -ge "$MAX_FAILURES" ]; then
                     log "CRITICAL: Too many consecutive failures ($failure_count). Backing off for $backoff seconds."
@@ -109,8 +118,8 @@ if bashio::config.true 'use_tcp_pulse'; then
                         backoff="$MAX_BACKOFF"
                     fi
                 fi
-            else
-                log "Event ignored due to debounce: $event"
+            # else
+            #     log "Event ignored due to debounce: $event"
             fi
         fi
     done &
