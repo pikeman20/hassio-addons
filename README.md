@@ -4,21 +4,22 @@ This repository contains Home Assistant add-ons for advanced audio processing an
 
 ## Add-ons
 
-This repository contains the following add-on:
+This repository contains the following add-ons:
 
-### [Real-time Microphone Filter](./ha-mic-filter)
+### [Nginx Proxy Manager](./addon-nginx-proxy-manager)
+Manage Nginx proxy hosts with a simple, powerful interface. Easily forward incoming connections, including free SSL, to Home Assistant, add-ons, or other services.
 
-Real-time microphone filtering for Home Assistant Assist using advanced audio processing techniques. Creates a virtual microphone device that applies professional-grade audio filters to enhance voice quality for voice assistants.
+### [Assist Microphone Custom](./assist_microphone)
+Home Assistant add-on that uses a local USB microphone or Pulse Server via TCP to control Assist. Part of the Year of Voice project.
 
-**Features:**
-- RNNoise AI-powered noise suppression
-- Multi-band equalizer (3-band)
-- Dynamic range compressor
-- Expander/Gate
-- Limiter
-- Gain control
-- PulseAudio virtual device support
-- Home Assistant Assist integration
+### [Passive BLE Monitor](./ble_monitor)
+Custom component for Home Assistant that passively monitors many different BLE devices of several brands. Can also be used as a device tracker for BLE devices.
+
+### [Bumper](./bumper-dev)
+Self-hosted central server for Ecovacs vacuum robots. Replaces the Ecovacs cloud, giving you full local control through a privacy-first, high-performance stack.
+
+### [Ecovacs Bumper Addon](./ecovacs-bumper)
+Runs the bumper-dev server as a Home Assistant addon, exposing multiple ports and supporting Nginx integration for full functionality.
 
 ## Installation
 
@@ -29,8 +30,7 @@ Add this repository to your Home Assistant instance:
 3. Select **Repositories**
 4. Add this repository URL: `https://github.com/pikeman20/hassio-addons`
 5. Close the dialog
-6. Find the "Real-time Microphone Filter" add-on in the store
-7. Click on it and press **Install**
+6. Click on it and press **Install**
 
 ## Support
 
