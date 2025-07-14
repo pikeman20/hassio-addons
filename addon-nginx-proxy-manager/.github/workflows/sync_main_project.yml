@@ -1,0 +1,23 @@
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # mỗi ngày
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v3
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Add upstream
+        run: |
+          git remote add upstream https://github.com/hassio-addons/addon-nginx-proxy-manager.git
+          git fetch upstream
+          git merge upstream/main --strategy-option theirs -m "Sync from upstream"
+          git push origin main

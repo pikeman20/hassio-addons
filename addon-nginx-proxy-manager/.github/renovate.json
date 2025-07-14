@@ -1,0 +1,90 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "rebaseWhen": "behind-base-branch",
+  "dependencyDashboard": true,
+  "labels": ["dependencies", "no-stale"],
+  "commitMessagePrefix": "⬆️",
+  "commitMessageTopic": "{{depName}}",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["/Dockerfile$", "/build.yaml$"],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "ARG BUILD_FROM=(?<depName>.*?):(?<currentValue>.*?)\\s+",
+        "(aarch64|amd64|armhf|armv7|i386):\\s[\"']?(?<depName>.*?):(?<currentValue>.*?)[\"']?\\s"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["/Dockerfile$"],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "\\s\\s(?<package>[a-z0-9][a-z0-9-_]+)=(?<currentValue>[a-z0-9-_.]+)\\s+"
+      ],
+      "versioningTemplate": "loose",
+      "datasourceTemplate": "repology",
+      "depNameTemplate": "alpine_3_22/{{package}}"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["/Dockerfile$"],
+      "matchStrings": [
+        "ARG NGINX_PROXY_MANAGER_VERSION=[\"']?(?<currentValue>.+?)[\"']?\\s+"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "NginxProxyManager/nginx-proxy-manager"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["repology"],
+      "automerge": true
+    },
+    {
+      "groupName": "Add-on base image",
+      "matchDatasources": ["docker"]
+    },
+    {
+      "groupName": "Add-on base image",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["pip_requirements"],
+      "addLabels": ["python"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "matchManagers": ["pip_requirements"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "groupName": "NGINX",
+      "matchDatasources": ["repology"],
+      "automerge": true,
+      "matchDepNames": ["/^alpine.*/nginx.*/"]
+    },
+    {
+      "groupName": "OpenSSL",
+      "matchDatasources": ["repology"],
+      "automerge": true,
+      "matchDepNames": ["/^alpine.*/openssl.*/"]
+    },
+    {
+      "groupName": "Python",
+      "matchDatasources": ["repology"],
+      "automerge": true,
+      "matchDepNames": ["/^alpine.*/python.*/"]
+    },
+    {
+      "matchDatasources": ["github-releases"],
+      "matchDepNames": ["NginxProxyManager/nginx-proxy-manager"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    }
+  ]
+}
