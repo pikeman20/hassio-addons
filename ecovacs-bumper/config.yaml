@@ -1,4 +1,4 @@
-version: 1.0.1
+version: 1.0.2
 slug: ecovacs-bumper
 name: Ecovacs Bumper
 description: Ecovacs bumper server as Home Assistant addon
