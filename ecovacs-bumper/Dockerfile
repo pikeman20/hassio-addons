@@ -13,13 +13,6 @@ RUN \
     apt-get update \
     && apt-get install -y --no-install-recommends \
         git \
-        netcat-traditional \
-        python3 \
-        python3-pip \
-        libopenblas0 \
-    && pip3 install --no-cache-dir -U \
-        setuptools \
-        wheel \
     && pip3 install --no-cache-dir uv
 
 WORKDIR /bumper-dev

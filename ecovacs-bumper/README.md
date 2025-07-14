@@ -6,7 +6,7 @@ This addon runs the [bumper-dev](https://github.com/pikeman20/bumper-dev) server
 
 - Runs bumper-dev from local source
 - Installs dependencies using uv
-- Exposes port 8080
+- Exposes port 8007, 1883, 8883, 1223, 5223
 
 ## Usage
 
