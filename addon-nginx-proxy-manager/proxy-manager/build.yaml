@@ -6,3 +6,5 @@ build_from:
 codenotary:
   base_image: codenotary@frenck.dev
   signer: codenotary@frenck.dev
+args:
+  PROXY_MANAGER_VERSION: 1.0.0
