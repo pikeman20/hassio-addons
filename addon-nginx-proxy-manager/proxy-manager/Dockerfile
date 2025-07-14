@@ -11,6 +11,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Copy patches
 COPY patches/*.patch /usr/src/
 
+ARG PROXY_MANAGER_VERSION
 # Setup base
 ARG NGINX_PROXY_MANAGER_VERSION="v2.12.4"
 # hadolint ignore=DL3003,DL3042
@@ -114,6 +115,9 @@ RUN \
 
 # Copy root filesystem
 COPY rootfs /
+
+# Ensure all scripts in s6-rc.d are executable
+RUN chmod -R +x /etc/s6-overlay/s6-rc.d
 
 # Build arguments
 ARG BUILD_ARCH
