@@ -13,12 +13,12 @@ ingress: true
 ingress_port: 8007
 ingress_stream: true
 options:
-  BUMPER_DATA: "/data"
-  BUMPER_CERTS: "/certs"
-  BUMPER_CA: "/certs/ca.crt"
-  BUMPER_CERT: "/certs/bumper.crt"
-  BUMPER_KEY: "/certs/bumper.key"
-  DB_FILE: "/data/bumper.db"
+  BUMPER_DATA: "/homeassistant_config/bumper/data"
+  BUMPER_CERTS: "/ssl/certs"
+  BUMPER_CA: "/ssl/certs/ca.crt"
+  BUMPER_CERT: "/ssl/certs/bumper.crt"
+  BUMPER_KEY: "/ssl/certs/bumper.key"
+  DB_FILE: "/homeassistant_config/bumper/data/bumper.db"
   BUMPER_LISTEN: "0.0.0.0"
   BUMPER_ANNOUNCE_IP: ""
   DEBUG_BUMPER_LEVEL: "INFO"
@@ -70,4 +70,8 @@ ports:
   "8883/tcp": null
   "1223/tcp": null
   "5223/tcp": null
+map:
+  - homeassistant_config
+  - share
+  - ssl
 homeassistant: 2023.9.0
