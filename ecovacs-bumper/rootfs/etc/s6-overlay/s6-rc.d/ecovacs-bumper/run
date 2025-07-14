@@ -1,0 +1,34 @@
+#!/command/with-contenv bashio
+# Start ecovacs-bumper service
+
+echo "Starting Ecovacs Bumper service..."
+
+export BUMPER_DATA="$(bashio::config 'BUMPER_DATA')"
+export BUMPER_CERTS="$(bashio::config 'BUMPER_CERTS')"
+export BUMPER_CA="$(bashio::config 'BUMPER_CA')"
+export BUMPER_CERT="$(bashio::config 'BUMPER_CERT')"
+export BUMPER_KEY="$(bashio::config 'BUMPER_KEY')"
+export DB_FILE="$(bashio::config 'DB_FILE')"
+export BUMPER_LISTEN="$(bashio::config 'BUMPER_LISTEN')"
+export BUMPER_ANNOUNCE_IP="$(bashio::config 'BUMPER_ANNOUNCE_IP')"
+export DEBUG_BUMPER_LEVEL="$(bashio::config 'DEBUG_BUMPER_LEVEL')"
+export DEBUG_BUMPER_VERBOSE="$(bashio::config 'DEBUG_BUMPER_VERBOSE')"
+export DEBUG_LOGGING_API_REQUEST="$(bashio::config 'DEBUG_LOGGING_API_REQUEST')"
+export DEBUG_LOGGING_API_REQUEST_MISSING="$(bashio::config 'DEBUG_LOGGING_API_REQUEST_MISSING')"
+export DEBUG_LOGGING_XMPP_REQUEST="$(bashio::config 'DEBUG_LOGGING_XMPP_REQUEST')"
+export DEBUG_LOGGING_XMPP_REQUEST_REFACTOR="$(bashio::config 'DEBUG_LOGGING_XMPP_REQUEST_REFACTOR')"
+export DEBUG_LOGGING_XMPP_RESPONSE="$(bashio::config 'DEBUG_LOGGING_XMPP_RESPONSE')"
+export DEBUG_LOGGING_SA_RESULT="$(bashio::config 'DEBUG_LOGGING_SA_RESULT')"
+export TOKEN_JWT_ALG="$(bashio::config 'TOKEN_JWT_ALG')"
+export BUMPER_PROXY_MQTT="$(bashio::config 'BUMPER_PROXY_MQTT')"
+export BUMPER_PROXY_WEB="$(bashio::config 'BUMPER_PROXY_WEB')"
+
+export WEB_SERVER_HTTPS_PORT="$(bashio::config 'WEB_SERVER_HTTPS_PORT')"
+export WEB_SERVER_LISTEN_PORT="$(bashio::config 'WEB_SERVER_LISTEN_PORT')"
+export MQTT_LISTEN_PORT="$(bashio::config 'MQTT_LISTEN_PORT')"
+export MQTT_LISTEN_PORT_TLS="$(bashio::config 'MQTT_LISTEN_PORT_TLS')"
+export XMPP_LISTEN_PORT="$(bashio::config 'XMPP_LISTEN_PORT')"
+export XMPP_LISTEN_PORT_TLS="$(bashio::config 'XMPP_LISTEN_PORT_TLS')"
+
+cd /bumper-dev
+exec uv run bumper

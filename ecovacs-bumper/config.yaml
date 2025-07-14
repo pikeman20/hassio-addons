@@ -1,0 +1,73 @@
+---
+version: 1.0.0
+slug: ecovacs-bumper
+name: Ecovacs Bumper
+description: Ecovacs bumper server as Home Assistant addon
+url: https://github.com/pikeman20/bumper-dev
+arch:
+  - amd64
+  - aarch64
+  - armv7
+init: false
+ingress: true
+ingress_port: 8007
+ingress_stream: true
+options:
+  BUMPER_DATA: "/data"
+  BUMPER_CERTS: "/certs"
+  BUMPER_CA: "/certs/ca.crt"
+  BUMPER_CERT: "/certs/bumper.crt"
+  BUMPER_KEY: "/certs/bumper.key"
+  DB_FILE: "/data/bumper.db"
+  BUMPER_LISTEN: "0.0.0.0"
+  BUMPER_ANNOUNCE_IP: ""
+  DEBUG_BUMPER_LEVEL: "INFO"
+  DEBUG_BUMPER_VERBOSE: 1
+  DEBUG_LOGGING_API_REQUEST: false
+  DEBUG_LOGGING_API_REQUEST_MISSING: false
+  DEBUG_LOGGING_XMPP_REQUEST: false
+  DEBUG_LOGGING_XMPP_REQUEST_REFACTOR: false
+  DEBUG_LOGGING_XMPP_RESPONSE: false
+  DEBUG_LOGGING_SA_RESULT: false
+  TOKEN_JWT_ALG: "ES256"
+  BUMPER_PROXY_MQTT: false
+  BUMPER_PROXY_WEB: false
+  WEB_SERVER_HTTPS_PORT: 443
+  WEB_SERVER_LISTEN_PORT: 8007
+  MQTT_LISTEN_PORT: 1883
+  MQTT_LISTEN_PORT_TLS: 8883
+  XMPP_LISTEN_PORT: 1223
+  XMPP_LISTEN_PORT_TLS: 5223
+schema:
+  BUMPER_DATA: "str"
+  BUMPER_CERTS: "str"
+  BUMPER_CA: "str"
+  BUMPER_CERT: "str"
+  BUMPER_KEY: "str"
+  DB_FILE: "str"
+  BUMPER_LISTEN: "str"
+  BUMPER_ANNOUNCE_IP: "str"
+  DEBUG_BUMPER_LEVEL: "str"
+  DEBUG_BUMPER_VERBOSE: "int"
+  DEBUG_LOGGING_API_REQUEST: "bool"
+  DEBUG_LOGGING_API_REQUEST_MISSING: "bool"
+  DEBUG_LOGGING_XMPP_REQUEST: "bool"
+  DEBUG_LOGGING_XMPP_REQUEST_REFACTOR: "bool"
+  DEBUG_LOGGING_XMPP_RESPONSE: "bool"
+  DEBUG_LOGGING_SA_RESULT: "bool"
+  TOKEN_JWT_ALG: "str"
+  BUMPER_PROXY_MQTT: "bool"
+  BUMPER_PROXY_WEB: "bool"
+  WEB_SERVER_HTTPS_PORT: "int"
+  WEB_SERVER_LISTEN_PORT: "int"
+  MQTT_LISTEN_PORT: "int"
+  MQTT_LISTEN_PORT_TLS: "int"
+  XMPP_LISTEN_PORT: "int"
+  XMPP_LISTEN_PORT_TLS: "int"
+ports:
+  "8007/tcp": null
+  "1883/tcp": null
+  "8883/tcp": null
+  "1223/tcp": null
+  "5223/tcp": null
+homeassistant: 2023.9.0
