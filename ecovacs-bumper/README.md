@@ -10,8 +10,7 @@ This addon runs the [bumper-dev](https://github.com/pikeman20/bumper-dev) server
 
 ## Usage
 
-1. Place your local bumper-dev source in `../bumper-dev` relative to this addon.
-2. Build and start the addon from Home Assistant Supervisor.
+1. Build and start the addon from Home Assistant Supervisor.
 
 No configuration options are required by default.
 
