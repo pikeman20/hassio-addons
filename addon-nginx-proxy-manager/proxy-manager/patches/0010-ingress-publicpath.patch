@@ -1,0 +1,9 @@
+--- a/frontend/webpack.config.js
++++ b/frontend/webpack.config.js
+@@ -15,7 +15,7 @@
+ 		path:          path.resolve(__dirname, 'dist'),
+ 		filename:      `js/[name].bundle.js?v=${PACKAGE.version}`,
+ 		chunkFilename: `js/[name].bundle.[id].js?v=${PACKAGE.version}`,
+-		publicPath:    '/'
++		publicPath:    './'
+ 	},
