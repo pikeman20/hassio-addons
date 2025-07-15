@@ -67,7 +67,6 @@ ports:
   "8007/tcp": null
   "1883/tcp": null
   "8883/tcp": null
-  "1223/tcp": null
   "5223/tcp": null
 map:
   - homeassistant_config

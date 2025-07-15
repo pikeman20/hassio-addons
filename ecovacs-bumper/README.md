@@ -19,60 +19,63 @@ No configuration options are required by default.
 To enable full functionality, you must include the content of nginx.conf
 in your Home Assistant addon nginx configuration. This configuration sets up stream proxying and port routing for bumper-dev services.
 
-Example nginx.conf content:
+Example /addon_configs/047b89f3_nginxproxymanager/nginx/custom/stream.conf content:
 ```
-# Global logging at debug level
-error_log stderr;
-# error_log stderr debug;
-pid /var/run/nginx.pid;
-
-events { }
-
-stream {
     resolver 127.0.0.11 ipv6=off;  # Docker DNS resolver
+    # map_hash_bucket_size 64;
 
+    ########################################################
+    # Logging: Define a custom log format to record key variables.
+    ########################################################
     log_format upstreaminfo '$remote_addr [$time_local] '
         'ADDR:"$proxy_protocol_addr", '
         'SNI:"$ssl_preread_server_name", '
         'ALPN:"$ssl_preread_alpn_protocols", '
         'final_port:$final_port';
 
+    # Write logs to this file.
     access_log /dev/stdout upstreaminfo;
 
+    ########################################################
+    # Choose the final port.
+    ########################################################
     map $ssl_preread_server_name $final_port {
         ~^.*(mq).*\.eco(vacs|user)\.(net|com)$    8883; # MQTTS
         ~^.*(mq).*\.aliyuncs\.(com)$              8883; # MQTTS
         # ~^.*(mq).*\.aliyuncs\.(com)$              1883; # MQTTS
         ~^.*eco(vacs|user)\.(net|com)$             443; # HTTPS
         ~^.*aliyuncs\.com$                         443; # HTTPS
-        ~^.*aliyun\.com$                           443; # HTTPS
-        default                                   8883; # MQTTS
+        ~^.*aliyun\.com$                           443; # HTTPS -> MQTTS
+		""                                        8883; # Connect by IP
+        default                                   1234; # Fallback to NPM Manager
+    }
+    map $final_port $proxy_target {
+        1234   127.0.0.1:443;
+        default addon_047b89f3_ecovacs-bumper:$final_port;
     }
 
     server {
-        listen 443;
-        ssl_preread  on;
-        proxy_pass bumper:$final_port;
+        listen 1443;
+        ssl_preread on;
+        proxy_pass $proxy_target;
     }
-
     server {
         listen 8007;
-        proxy_pass bumper:8007;
+        proxy_pass addon_047b89f3_ecovacs-bumper:8007;
     }
 
     server {
         listen 1883;
-        proxy_pass bumper:1883;
+        proxy_pass addon_047b89f3_ecovacs-bumper:1883;
     }
 
     server {
         listen 8883;
-        proxy_pass bumper:8883;
+        proxy_pass addon_047b89f3_ecovacs-bumper:8883;
     }
 
     server {
         listen 5223;
-        proxy_pass bumper:5223;
+        proxy_pass addon_047b89f3_ecovacs-bumper:5223;
     }
-}
 ```

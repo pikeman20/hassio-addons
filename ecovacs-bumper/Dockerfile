@@ -16,7 +16,7 @@ RUN git clone https://github.com/pikeman20/bumper-dev.git /bumper-dev
 
 WORKDIR /bumper-dev
 
-RUN uv sync --no-dev
+RUN uv sync
 
 WORKDIR /
 
