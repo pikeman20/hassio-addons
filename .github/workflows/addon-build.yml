@@ -27,7 +27,7 @@ jobs:
         id: detect
         run: |
           ADDONS="${{ steps.addons.outputs.ADDONS }}"
-          echo "$ADDONS" | tr ',' '\n' > all_addons.txt
+          echo "$ADDONS" | tr ',' '\n' | grep -v '^$' > all_addons.txt
           echo '${{ steps.changed.outputs.all_changed_files }}' | tr ',' '\n' > changed.txt
           echo "" > build_addons.txt
           while read addon; do
@@ -43,12 +43,12 @@ jobs:
         run: |
           IFS=',' read -ra ADDONS <<< "${{ steps.detect.outputs.addons }}"
           for addon in "${ADDONS[@]}"; do
+            [ -z "$addon" ] && continue
             echo "Building $addon"
             cd "$addon"
-            # Parse build_from architectures and images from build.yaml
             ARCHS=$(yq '.build_from | keys | join(" ")' build.yaml)
             for arch in $ARCHS; do
-              IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/$addon-$arch"
+              IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/$(echo $addon | tr '/' '-')-$arch"
               TAG="latest"
               docker buildx build --platform linux/$arch -t "$IMAGE_NAME:$TAG" --push --build-arg BUILD_FROM=$(yq ".build_from.$arch" build.yaml) .
               echo "Pushed $IMAGE_NAME:$TAG"
