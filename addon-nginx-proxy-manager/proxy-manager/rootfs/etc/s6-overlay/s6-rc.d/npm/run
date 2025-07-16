@@ -11,10 +11,11 @@ bashio::log.info "Starting the Manager..."
 options+=(--abort_on_uncaught_exception)
 options+=("--max_old_space_size=250")
 
-export NODE_ENV=production
+export NODE_ENV=development
 
 if bashio::debug; then
   export DEBUG=1
+  echo "Debug mode is enabled, setting DEBUG=1"
 fi
 
 

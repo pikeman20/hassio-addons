@@ -158,7 +158,6 @@ COPY rootfs /
 RUN chmod -R +x /etc/s6-overlay/s6-rc.d
 
 # Always run as root to ensure /dev/stdout is writable
-USER root
 
 # Build arguments
 ARG BUILD_ARCH
