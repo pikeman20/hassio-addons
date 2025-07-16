@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_matrix: ${{ steps.set-matrix.outputs.has_matrix }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,21 +26,24 @@ jobs:
         run: |
           ADDONS=$(yq '.addons | join(" ")' .github/addons.yaml)
           MATRIX="{\"include\":["
+          HAS_MATRIX="false"
           for addon in $ADDONS; do
             if grep -q "^$addon/" <<< "${{ steps.changed.outputs.all_changed_files }}" || grep -q "^$addon$" <<< "${{ steps.changed.outputs.all_changed_files }}"; then
               ARCHS=$(yq '.build_from | keys | join(" ")' $addon/build.yaml)
               for arch in $ARCHS; do
                 MATRIX="$MATRIX{\"addon\":\"$addon\",\"arch\":\"$arch\"},"
+                HAS_MATRIX="true"
               done
             fi
           done
           MATRIX="${MATRIX%,}]}"
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "has_matrix=$HAS_MATRIX" >> $GITHUB_OUTPUT
 
   build-addon:
     needs: detect-and-build
+    if: needs.detect-and-build.outputs.has_matrix == 'true'
     runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || (matrix.arch == 'aarch64' && 'self-hosted,linux,arm64') || 'ubuntu-latest' }}
-    if: ${{ needs.detect-and-build.outputs.matrix != '' }}
     strategy:
       matrix: ${{fromJson(needs.detect-and-build.outputs.matrix)}}
     steps:
