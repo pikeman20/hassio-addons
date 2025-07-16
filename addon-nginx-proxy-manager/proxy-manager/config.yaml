@@ -29,8 +29,7 @@ backup_exclude:
 image: ghcr.io/pikeman20/addon-nginx-proxy-manager-proxy-manager-{arch}
 
 options:
-  - name: debug
-    description: Enable debug mode
-    selector:
-      boolean: {}
-    default: false
+  debug: false
+
+schema:
+  debug: bool
