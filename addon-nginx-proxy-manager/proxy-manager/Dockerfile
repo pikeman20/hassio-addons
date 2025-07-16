@@ -1,5 +1,31 @@
 ARG BUILD_FROM=ghcr.io/hassio-addons/base:18.0.2
 # hadolint ignore=DL3006
+FROM ${BUILD_FROM} AS downloader
+ARG NGINX_PROXY_MANAGER_VERSION="v2.12.4"
+RUN apk add --no-cache curl git patch=2.8-r0 yarn=1.22.22-r1 \
+    && yarn global add modclean\
+ && curl -J -L -o /nginxproxymanager.tar.gz \
+    "https://github.com/NginxProxyManager/nginx-proxy-manager/archive/${NGINX_PROXY_MANAGER_VERSION}.tar.gz"
+
+COPY patches/*.patch /tmp/patches/
+RUN mkdir -p /usr/src && \
+    for file in /tmp/patches/*.patch; do \
+      if grep -qE 'package\.json|yarn\.lock|\.npmrc|\.yarnrc' "$file"; then \
+        cp "$file" /usr/src/$(basename "$file"); \
+      fi; \
+    done
+
+RUN mkdir /app \
+    && tar zxvf \
+        /nginxproxymanager.tar.gz \
+        --strip 1 -C /app \
+    \
+    && for i in /usr/src/*.patch; do \
+        patch -d /app -p 1 < "${i}"; done \
+    \
+    && cd /app/frontend \
+    && yarn install --ignore-engines --network-timeout 100000 
+
 FROM ${BUILD_FROM}
 
 # Required for webpack config of NPM with Node.js 22
@@ -8,56 +34,61 @@ ENV NODE_OPTIONS="--openssl-legacy-provider"
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Copy patches
-COPY patches/*.patch /usr/src/
+# Copy patches not included in the downloader stage
+
+COPY patches/*.patch /tmp/patches/
+RUN mkdir -p /usr/src && \
+    for file in /tmp/patches/*.patch; do \
+      if ! grep -qE 'frontend/package\.json|frontend/yarn\.lock|\.npmrc|\.yarnrc' "$file"; then \
+        cp "$file" /usr/src/$(basename "$file"); \
+      fi; \
+    done
+
+COPY scripts/*.sh /usr/src/scripts/
+
+RUN chmod +x /usr/src/scripts/*.sh
+
+COPY --from=downloader /app /app
 
 ARG PROXY_MANAGER_VERSION
 # Setup base
 ARG NGINX_PROXY_MANAGER_VERSION="v2.12.4"
 # hadolint ignore=DL3003,DL3042
-RUN \
-    apk add --no-cache --virtual .build-dependencies \
-        build-base=0.5-r3 \
-        git=2.49.1-r0 \
-        libffi-dev=3.4.8-r0 \
-        openssl-dev=3.5.1-r0 \
-        patch=2.8-r0 \
-        python3-dev=3.12.11-r0 \
-    \
-    && apk add --no-cache \
-        apache2-utils \
-        certbot=4.0.0-r0 \
-        libcap=2.76-r0 \
-        logrotate=3.21.0-r1 \
-        nginx-mod-stream=1.28.0-r3 \
-        nginx=1.28.0-r3 \
-        nodejs=22.16.0-r2 \
-        npm=11.3.0-r0 \
-        openssl=3.5.1-r0 \
-        py3-pip=25.1.1-r0 \
-        python3=3.12.11-r0 \
-        yarn=1.22.22-r1 \
-    \
-    && yarn global add modclean \
-    \
-    && curl -J -L -o /tmp/nginxproxymanager.tar.gz \
-        "https://github.com/NginxProxyManager/nginx-proxy-manager/archive/${NGINX_PROXY_MANAGER_VERSION}.tar.gz" \
-    && mkdir /app \
-    && tar zxvf \
-        /tmp/nginxproxymanager.tar.gz \
-        --strip 1 -C /app \
-    \
-    && for i in /usr/src/*.patch; do \
-        patch -d /app -p 1 < "${i}"; done \
-    \
-    && cd /app/frontend \
-    && yarn install --ignore-engines --network-timeout 100000 \
+RUN apk add --no-cache --virtual .build-dependencies \
+    build-base=0.5-r3 \
+    git=2.49.1-r0 \
+    libffi-dev=3.4.8-r0 \
+    openssl-dev=3.5.1-r0 \
+    patch=2.8-r0 \
+    python3-dev=3.12.11-r0
+
+RUN apk add --no-cache \
+    apache2-utils \
+    certbot=4.0.0-r0 \
+    libcap=2.76-r0 \
+    logrotate=3.21.0-r1 \
+    nginx-mod-stream=1.28.0-r3 \
+    nginx=1.28.0-r3 \
+    nodejs=22.16.0-r2 \
+    npm=11.3.0-r0 \
+    openssl=3.5.1-r0 \
+    py3-pip=25.1.1-r0 \
+    python3=3.12.11-r0 \
+    yarn=1.22.22-r1 \
+    && yarn global add modclean
+    
+RUN for i in /usr/src/*.patch; do \
+        patch -d /app -p 1 < "${i}"; done
+
+RUN for i in /usr/src/scripts/*.sh; do \
+        sh "${i}"; done
+
+RUN cd /app/frontend \
     && yarn build --ignore-engines \
     && rm -rf node_modules \
     \
     && mkdir -p /opt/nginx-proxy-manager/frontend \
     && cp -r /app/frontend/dist/. /opt/nginx-proxy-manager/frontend/ \
-    \
     && cd /app/backend \
     && yarn install \
     && rm -rf node_modules \
