@@ -33,8 +33,8 @@ Example /addon_configs/047b89f3_nginxproxymanager/nginx/custom/stream.conf conte
         'ALPN:"$ssl_preread_alpn_protocols", '
         'final_port:$final_port';
 
-    # Write logs to this file.
-    access_log /dev/stdout upstreaminfo;
+    # Write logs to addon log.
+    access_log /proc/1/fd/1 upstreaminfo;
 
     ########################################################
     # Choose the final port.

@@ -7,16 +7,14 @@ This repository contains Home Assistant add-ons for advanced audio processing an
 This repository contains the following add-ons:
 
 ### [Nginx Proxy Manager](./addon-nginx-proxy-manager)
-Manage Nginx proxy hosts with a simple, powerful interface. Easily forward incoming connections, including free SSL, to Home Assistant, add-ons, or other services.
+Manage Nginx proxy hosts with a simple, powerful interface. Easily forward incoming connections, including free SSL, to Home Assistant, add-ons, or other services. - Add support for ingress
 
 ### [Assist Microphone Custom](./assist_microphone)
 Home Assistant add-on that uses a local USB microphone or Pulse Server via TCP to control Assist. Part of the Year of Voice project.
 
 ### [Passive BLE Monitor](./ble_monitor)
 Custom component for Home Assistant that passively monitors many different BLE devices of several brands. Can also be used as a device tracker for BLE devices.
-
-### [Bumper](./bumper-dev)
-Self-hosted central server for Ecovacs vacuum robots. Replaces the Ecovacs cloud, giving you full local control through a privacy-first, high-performance stack.
+- A custom version that added support for LeTianPai presence sensor POP
 
 ### [Ecovacs Bumper Addon](./ecovacs-bumper)
 Runs the bumper-dev server as a Home Assistant addon, exposing multiple ports and supporting Nginx integration for full functionality.

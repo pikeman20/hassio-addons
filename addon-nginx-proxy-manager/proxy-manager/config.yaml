@@ -1,11 +1,10 @@
 ---
 name: Nginx Proxy Manager
-version: 1.0.22
+version: 1.1.0
 slug: nginxproxymanager
 description: Manage Nginx proxy hosts with a simple, powerful interface
 url: https://github.com/hassio-addons/addon-nginx-proxy-manager
 codenotary: codenotary@frenck.dev
-webui: http://[HOST]:[PORT:81]
 startup: services
 init: false
 ingress: true
@@ -18,7 +17,6 @@ arch:
 hassio_api: true
 ports:
   80/tcp: 80
-  81/tcp: null
   443/tcp: null
   1443/tcp: 443
 map:
