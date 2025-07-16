@@ -1,0 +1,31 @@
+diff --git a/frontend/js/app/api.js b/frontend/js/app/api.js
+index 6e33a6d..9e8f4da 100644
+--- a/frontend/js/app/api.js
++++ b/frontend/js/app/api.js
+@@ -37,7 +37,7 @@ function fetch(verb, path, data, options) {
+     options = options || {};
+ 
+     return new Promise(function (resolve, reject) {
+-        let api_url = '/api/';
++        let api_url = '__INGRESS_BASE_URL__/api/';
+         let url     = api_url + path;
+         let token   = Tokens.getTopToken();
+ 
+@@ -131,7 +131,7 @@ function FileUpload(path, fd) {
+         let xhr   = new XMLHttpRequest();
+         let token = Tokens.getTopToken();
+ 
+-        xhr.open('POST', '/api/' + path);
++        xhr.open('POST', '__INGRESS_BASE_URL__/api/' + path);
+         xhr.overrideMimeType('text/plain');
+         xhr.setRequestHeader('Authorization', 'Bearer ' + (token ? token.t : null));
+         xhr.send(fd);
+@@ -155,7 +155,7 @@ function FileUpload(path, fd) {
+ //ref : https://codepen.io/chrisdpratt/pen/RKxJNo
+ function DownloadFile(verb, path, filename) {
+     return new Promise(function (resolve, reject) {
+-        let api_url = '/api/';
++        let api_url = '__INGRESS_BASE_URL__/api/';
+         let url = api_url + path;
+         let token = Tokens.getTopToken();
+ 
