@@ -76,7 +76,9 @@ RUN apk add --no-cache \
     python3=3.12.11-r0 \
     yarn=1.22.22-r1 \
     && yarn global add modclean
-    
+
+RUN adduser -S -H -s /sbin/nologin npm
+
 RUN for i in /usr/src/*.patch; do \
         patch -d /app -p 1 < "${i}"; done
 
