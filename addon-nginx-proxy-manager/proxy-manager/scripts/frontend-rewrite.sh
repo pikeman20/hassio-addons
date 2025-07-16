@@ -9,6 +9,6 @@ for dir in /app/frontend/js /app/frontend/html; do
     s|(<[^>]+href[[:space:]]*=[[:space:]]*["'\''"])/|\1./|g;
     s|(<[^>]+src[[:space:]]*=[[:space:]]*["'\''"])/|\1./|g;
     s|(window\.location[[:space:]]*=[[:space:]]*["'\''"])/|\1./|g;
-    s|(["'\''`])?/api/|\1./api/|g;
+    s|(["'\''`])?/api/|\1api/|g;
   ' {} +
 done

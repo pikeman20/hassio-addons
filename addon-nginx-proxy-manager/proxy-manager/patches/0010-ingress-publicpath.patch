@@ -5,5 +5,5 @@
  		filename:      `js/[name].bundle.js?v=${PACKAGE.version}`,
  		chunkFilename: `js/[name].bundle.[id].js?v=${PACKAGE.version}`,
 -		publicPath:    '/'
-+		publicPath:    './'
++		publicPath:    '/047b89f3_nginxproxymanager/ingress/'
  	},
