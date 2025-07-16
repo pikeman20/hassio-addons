@@ -4,6 +4,16 @@ on:
   push:
     paths:
       - '**'
+  workflow_dispatch:
+    inputs:
+      addon:
+        description: 'Addon folder to build'
+        required: true
+        type: choice
+        options:
+          - addon-nginx-proxy-manager/proxy-manager
+          - assist_microphone
+          - ecovacs-bumper
 
 jobs:
   detect-and-build:
@@ -15,35 +25,41 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get changed files
-        id: changed
-        uses: tj-actions/changed-files@v44
-        with:
-          separator: ','
-
-      - name: Read addon config and architectures
+      - name: Set matrix for workflow_dispatch
         id: set-matrix
         run: |
-          ADDONS=$(yq '.addons | join(" ")' .github/addons.yaml)
-          MATRIX="{\"include\":["
-          HAS_MATRIX="false"
-          for addon in $ADDONS; do
-            if grep -q "^$addon/" <<< "${{ steps.changed.outputs.all_changed_files }}" || grep -q "^$addon$" <<< "${{ steps.changed.outputs.all_changed_files }}"; then
-              ARCHS=$(yq '.build_from | keys | join(" ")' $addon/build.yaml)
-              for arch in $ARCHS; do
-                MATRIX="$MATRIX{\"addon\":\"$addon\",\"arch\":\"$arch\"},"
-                HAS_MATRIX="true"
-              done
-            fi
-          done
-          MATRIX="${MATRIX%,}]}"
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-          echo "has_matrix=$HAS_MATRIX" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.addon }}" ]; then
+            ADDON="${{ github.event.inputs.addon }}"
+            ARCHS=$(yq '.build_from | keys | join(" ")' $ADDON/build.yaml)
+            MATRIX="{\"include\":["
+            for arch in $ARCHS; do
+              MATRIX="$MATRIX{\"addon\":\"$ADDON\",\"arch\":\"$arch\"},"
+            done
+            MATRIX="${MATRIX%,}]}"
+            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+            echo "has_matrix=true" >> $GITHUB_OUTPUT
+          else
+            ADDONS=$(yq '.addons | join(" ")' .github/addons.yaml)
+            MATRIX="{\"include\":["
+            HAS_MATRIX="false"
+            for addon in $ADDONS; do
+              if grep -q "^$addon/" <<< "${{ steps.changed.outputs.all_changed_files }}" || grep -q "^$addon$" <<< "${{ steps.changed.outputs.all_changed_files }}"; then
+                ARCHS=$(yq '.build_from | keys | join(" ")' $addon/build.yaml)
+                for arch in $ARCHS; do
+                  MATRIX="$MATRIX{\"addon\":\"$addon\",\"arch\":\"$arch\"},"
+                  HAS_MATRIX="true"
+                done
+              fi
+            done
+            MATRIX="${MATRIX%,}]}"
+            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+            echo "has_matrix=$HAS_MATRIX" >> $GITHUB_OUTPUT
+          fi
 
   build-addon:
     needs: detect-and-build
     if: needs.detect-and-build.outputs.has_matrix == 'true'
-    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || (matrix.arch == 'aarch64' && 'self-hosted,linux,arm64') || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.arch == 'amd64' && 'ubuntu-latest' || matrix.arch == 'armv7' && 'ubuntu-latest' || matrix.arch == 'aarch64' && 'ubuntu-latest' || 'ubuntu-latest' }}
     strategy:
       matrix: ${{fromJson(needs.detect-and-build.outputs.matrix)}}
     steps:
@@ -54,7 +70,8 @@ jobs:
         run: |
           cd "${{ matrix.addon }}"
           IMAGE_NAME="ghcr.io/${{ github.repository_owner }}/$(echo ${{ matrix.addon }} | tr '/' '-')-${{ matrix.arch }}"
-          TAG="latest"
-          docker build -t "$IMAGE_NAME:$TAG" --build-arg BUILD_FROM=$(yq ".build_from.${{ matrix.arch }}" build.yaml) .
+          VERSION=$(yq '.version' config.yaml)
+          docker build -t "$IMAGE_NAME:latest" -t "$IMAGE_NAME:$VERSION" --build-arg BUILD_FROM=$(yq ".build_from.${{ matrix.arch }}" build.yaml) .
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-          docker push "$IMAGE_NAME:$TAG"
+          docker push "$IMAGE_NAME:latest"
+          docker push "$IMAGE_NAME:$VERSION"
