@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/base:18.0.2
+ARG BUILD_FROM
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM} AS downloader
 ARG NGINX_PROXY_MANAGER_VERSION="v2.12.4"
