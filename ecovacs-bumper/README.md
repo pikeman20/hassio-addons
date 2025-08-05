@@ -14,6 +14,15 @@ This addon runs the [bumper-dev](https://github.com/pikeman20/bumper-dev) server
 
 No configuration options are required by default.
 
+**Note:**  
+When setting up the integration, the `override_mqtt_url` and `override_rest_url` fields should be set using the IP address of the bumper addon container.  
+For example:  
+```json
+"override_mqtt_url": "mqtts://172.30.33.0:8883",
+"override_rest_url": "http://172.30.33.0:8007"
+```
+Here, `172.30.33.0` is the IP address of the bumper addon container. Adjust this IP as needed for your environment.
+
 ## Nginx Integration
 
 To enable full functionality, you must include the content of nginx.conf
