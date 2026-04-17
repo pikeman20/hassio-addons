@@ -1,0 +1,49 @@
+name: Sync PrinterDuplexScanForCheapPrint Submodule
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force update even if no changes'
+        required: false
+        default: 'false'
+        type: boolean
+  repository_dispatch:
+    types: [printer-submodule-update]
+
+jobs:
+  sync-submodule:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update PrinterDuplexScanForCheapPrint submodule
+        id: update
+        run: |
+          git submodule update --remote --merge PrinterDuplexScanForCheapPrint
+          if git diff --staged --quiet && git diff --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes in submodule."
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            NEW_COMMIT=$(git -C PrinterDuplexScanForCheapPrint rev-parse --short HEAD)
+            echo "new_commit=$NEW_COMMIT" >> $GITHUB_OUTPUT
+            echo "Submodule updated to $NEW_COMMIT"
+          fi
+
+      - name: Commit and push submodule update
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add PrinterDuplexScanForCheapPrint
+          git commit -m "chore: update PrinterDuplexScanForCheapPrint submodule to ${{ steps.update.outputs.new_commit }}"
+          git push

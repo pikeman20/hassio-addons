@@ -1,0 +1,3 @@
+[submodule "PrinterDuplexScanForCheapPrint"]
+	path = PrinterDuplexScanForCheapPrint
+	url = https://github.com/pikeman20/duplex-scan-for-any-printer.git
