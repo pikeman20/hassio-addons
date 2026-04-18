@@ -42,6 +42,12 @@ jobs:
           files_ignore: |
             .github/**
 
+      - name: Init submodule for workflow_run
+        if: github.event_name == 'workflow_run'
+        run: |
+          git submodule init duplex-scan-for-any-printer
+          git submodule update --remote duplex-scan-for-any-printer
+
       - name: Set matrix for workflow_dispatch
         id: set-matrix
         run: |
