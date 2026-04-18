@@ -82,6 +82,9 @@ jobs:
               if grep -q "^$addon/" <<< "$CHANGED_FILES" \
                 || grep -q "^$addon$" <<< "$CHANGED_FILES" \
                 || grep -q "^$addon$" <<< "$SUBMODULE_CHANGES"; then
+                if [ ! -f "$addon/build.yaml" ]; then
+                  git submodule update --init --remote "$addon"
+                fi
                 ARCHS=$(yq '.build_from | keys | join(" ")' $addon/build.yaml)
                 for arch in $ARCHS; do
                   MATRIX="$MATRIX{\"addon\":\"$addon\",\"arch\":\"$arch\"},"
