@@ -36,7 +36,7 @@ def test_telegram_config_loading():
 
         assert config.telegram.enabled == True
         assert config.telegram.bot_token == "test_token"
-        assert config.telegram.authorized_users == ["12345"]
+        assert config.telegram.authorized_users == [12345]
         assert config.telegram.notify_on_session_ready == True
 
 

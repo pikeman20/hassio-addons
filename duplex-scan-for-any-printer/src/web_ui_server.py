@@ -174,20 +174,30 @@ async def health_check():
 @app.get("/api/bot/status")
 async def bot_status():
     """Get notification channel statuses from the scan agent."""
+    agent_reachable = False
     try:
         async with _local_client() as client:
             resp = await client.get(f"{AGENT_API_URL}/api/channels/status", timeout=2.0)
             channels = resp.json().get("channels", {})
+            agent_reachable = True
     except Exception:
         channels = {}
 
     telegram = channels.get("telegram", {})
+
+    if not agent_reachable:
+        default_message = "Agent not reachable"
+    elif not telegram:
+        default_message = "Telegram not configured"
+    else:
+        default_message = "Bot stopped"
+
     return JSONResponse({
         "enabled": telegram.get("enabled", False),
         "connected": telegram.get("connected", False),
         "pending_sessions": 1 if telegram.get("pending_session", False) else 0,
         "authorized_users": telegram.get("authorized_users", 0),
-        "message": telegram.get("message", "Agent not reachable"),
+        "message": telegram.get("message", default_message),
         "channels": channels,
     })
 

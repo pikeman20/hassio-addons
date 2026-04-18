@@ -492,9 +492,23 @@ class TelegramBot(NotificationChannel):
                     self._polling_loop = loop
                     try:
                         logger.info(f"Bot polling started (attempt {attempt + 1}/{max_retries})")
-                        loop.run_until_complete(
-                            self._application.run_polling(drop_pending_updates=True)
-                        )
+                        # Use manual start/stop instead of run_polling() to avoid
+                        # add_signal_handler() which only works on the main thread.
+                        async def _poll():
+                            await self._application.initialize()
+                            await self._application.start()
+                            await self._application.updater.start_polling(
+                                drop_pending_updates=True
+                            )
+                            # Keep running until _running is cleared
+                            while self._running:
+                                await asyncio.sleep(1)
+                            await self._application.updater.stop()
+                            await self._application.stop()
+                            await self._application.shutdown()
+
+                        loop.run_until_complete(_poll())
+                        break  # clean exit — don't retry
                     except Exception as e:
                         if attempt < max_retries - 1:
                             logger.warning(f"Bot polling crashed, restarting in {retry_delay}s: {e}")
@@ -519,12 +533,7 @@ class TelegramBot(NotificationChannel):
 
     def stop(self) -> None:
         """Stop the bot."""
-        if self._application:
-            try:
-                import asyncio
-                asyncio.run(self._application.stop())
-            except Exception as e:
-                logger.error(f"Error stopping bot: {e}")
+        # Signal the polling loop to exit cleanly (loop checks self._running).
         self._running = False
         logger.info("Telegram bot stopped")
 
