@@ -1,0 +1,209 @@
+<div class="dashboard-root">
+  <div class="dashboard-header">
+    <h2>📊 Scanner Dashboard</h2>
+    <p>Monitor active scanning sessions and notification channels</p>
+  </div>
+
+  <div class="dashboard-grid">
+
+    <!-- Bot Status Card -->
+    <div class="status-card">
+      <div class="card-header">
+        <h3>🤖 Telegram Bot</h3>
+        <div class="status-indicator" :class="botStatusClass">{{ botStatusText }}</div>
+      </div>
+      <div class="card-content">
+        <div class="status-detail">
+          <span class="status-label">Enabled</span>
+          <span class="status-value">{{ scansStore.botStatus?.enabled ? 'Yes' : 'No' }}</span>
+        </div>
+        <div class="status-detail">
+          <span class="status-label">Connected</span>
+          <span class="status-value">{{ scansStore.botStatus?.connected ? 'Yes' : 'No' }}</span>
+        </div>
+        <div class="status-detail">
+          <span class="status-label">Registered chats</span>
+          <span class="status-value">{{ scansStore.botStatus?.authorized_users || 0 }}</span>
+        </div>
+        <div class="status-detail">
+          <span class="status-label">Status</span>
+          <span class="status-value">{{ scansStore.botStatus?.message || '—' }}</span>
+        </div>
+        <button class="btn-secondary btn-sm mt-8" @click="openBotSettings">⚙️ Bot Settings</button>
+      </div>
+    </div>
+
+    <!-- Active Session Card -->
+    <div class="status-card">
+      <div class="card-header">
+        <h3>📋 Active Session</h3>
+        <div class="status-indicator" :class="sessionStatusClass">{{ sessionStatusText }}</div>
+      </div>
+      <div class="card-content">
+        <template v-if="scansStore.sessionStatus?.current_session_id">
+          <div class="status-detail">
+            <span class="status-label">ID</span>
+            <span class="status-value mono">{{ scansStore.sessionStatus.current_session_id }}</span>
+          </div>
+          <div class="status-detail">
+            <span class="status-label">Mode</span>
+            <span class="status-value">{{ scansStore.sessionStatus.mode }}</span>
+          </div>
+          <div class="status-detail">
+            <span class="status-label">Images</span>
+            <span class="status-value">{{ scansStore.sessionStatus.image_count }}</span>
+          </div>
+          <div class="status-detail">
+            <span class="status-label">State</span>
+            <span class="status-value">{{ scansStore.sessionStatus.state }}</span>
+          </div>
+
+          <!-- Confirm / Reject — only shown when waiting -->
+          <div v-if="scansStore.sessionStatus.state === 'WAIT_CONFIRM'" class="confirm-actions">
+            <button class="btn-confirm" :disabled="actionLoading" @click="confirmSession(false)">
+              {{ actionLoading ? '…' : '✅ Confirm (scan only)' }}
+            </button>
+            <button class="btn-confirm-print" :disabled="actionLoading" @click="confirmSession(true)">
+              {{ actionLoading ? '…' : '🖨️ Confirm + Print' }}
+            </button>
+            <button class="btn-reject" :disabled="actionLoading" @click="rejectSession">
+              {{ actionLoading ? '…' : '❌ Reject' }}
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <p class="no-session">No active session. Waiting for scan images…</p>
+        </template>
+
+        <div v-if="actionFeedback" class="action-feedback" :class="actionFeedback.ok ? 'ok' : 'err'">
+          {{ actionFeedback.message }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="status-card">
+      <div class="card-header"><h3>⚡ Quick Actions</h3></div>
+      <div class="card-content">
+        <div class="action-buttons">
+          <button class="btn-primary" @click="refreshAll">🔄 Refresh</button>
+          <button class="btn-secondary" @click="openBotSettings">⚙️ Bot Settings</button>
+        </div>
+        <p class="hint">Auto-refreshes every 10 s</p>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="status-card wide">
+      <div class="card-header"><h3>🔄 Recent Activity</h3></div>
+      <div class="card-content">
+        <p v-if="scansStore.isLoading" class="hint">Loading…</p>
+        <p v-else-if="!scansStore.activity.length" class="hint">No processed scans yet.</p>
+        <table v-else class="activity-table">
+          <thead>
+            <tr>
+              <th>Session</th>
+              <th>Mode</th>
+              <th>Pages</th>
+              <th>Size</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in scansStore.activity" :key="item.id">
+              <td class="mono truncate" :title="item.id">{{ item.id }}</td>
+              <td>{{ item.mode.replace('_', ' ') }}</td>
+              <td>{{ item.pages ?? '—' }}</td>
+              <td>{{ item.size_mb }} MB</td>
+              <td>{{ new Date(item.created * 1000).toLocaleString() }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /dashboard-grid -->
+
+  <!-- ── Bot Settings Modal ── -->
+  <div v-if="showBotSettings" class="modal-backdrop" @click.self="showBotSettings = false">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🤖 Telegram Bot Settings</h3>
+        <button class="modal-close" @click="showBotSettings = false">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- How to get chat ID -->
+        <section class="settings-section">
+          <h4>How to receive notifications</h4>
+          <ol class="guide-steps">
+            <li>Open Telegram and search for your bot.</li>
+            <li>Send <code>/start</code> to the bot.</li>
+            <li>
+              Your chat ID will appear in <b>Registered chats</b> below.<br>
+              Copy it and add it to <code>config.yaml</code> under <code>telegram.notify_chat_ids</code>.
+            </li>
+          </ol>
+          <div class="code-block">
+            <pre>telegram:
+  notify_chat_ids:
+    - "YOUR_CHAT_ID"  # paste your chat ID here</pre>
+            <button class="btn-copy" @click="copyYamlSnippet">📋 Copy</button>
+          </div>
+        </section>
+
+        <!-- Registered chats (people who sent /start) -->
+        <section class="settings-section">
+          <h4>Registered chats <span class="badge">{{ registeredChatEntries.length }}</span>
+            <button class="btn-sm btn-secondary ml-8" @click="scansStore.fetchBotInfo()">↻</button>
+          </h4>
+          <p v-if="!registeredChatEntries.length" class="hint">
+            No one has sent /start yet.
+          </p>
+          <table v-else class="chat-table">
+            <thead><tr><th>User ID</th><th>Chat ID</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="[uid, cid] in registeredChatEntries" :key="uid">
+                <td class="mono">{{ uid }}</td>
+                <td class="mono">{{ cid }}</td>
+                <td>
+                  <button class="btn-copy-id" @click="copyText(String(cid))">📋</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Configured notify_chat_ids -->
+        <section class="settings-section">
+          <h4>Configured notify_chat_ids</h4>
+          <p v-if="!scansStore.botInfo?.notify_chat_ids?.length" class="hint">
+            None configured. Add them to <code>config.yaml</code>.
+          </p>
+          <div v-else class="chip-list">
+            <span v-for="id in scansStore.botInfo.notify_chat_ids" :key="id" class="chip">{{ id }}</span>
+          </div>
+        </section>
+
+        <!-- Available bot commands reference -->
+        <section class="settings-section">
+          <h4>Bot commands</h4>
+          <table class="cmd-table">
+            <tbody>
+              <tr><td><code>/start</code></td><td>Register your chat &amp; show welcome</td></tr>
+              <tr><td><code>/status</code></td><td>Show current session status</td></tr>
+              <tr><td><code>/confirm</code></td><td>Confirm the current session</td></tr>
+              <tr><td><code>/reject</code></td><td>Reject the current session</td></tr>
+              <tr><td><code>/help</code></td><td>Show all commands</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Copy toast -->
+  <div v-if="copyToast" class="toast">{{ copyToast }}</div>
+
+</div>

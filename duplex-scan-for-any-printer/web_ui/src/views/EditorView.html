@@ -1,0 +1,322 @@
+<div class="editor-view-root">
+  <!-- Floating PDF preview indicator (clean / minimal) -->
+  <div v-if="isPdfPreviewLoading" class="pdf-preview-indicator" role="status" aria-live="polite">
+    <div class="pdf-icon" aria-hidden="true">PDF</div>
+    <div class="pdf-info">
+      <div class="pdf-title">PDF Preview</div>
+      <div class="pdf-sub">{{ progressMessage || 'Generating…' }}</div>
+      <div class="pdf-mini-progress" :style="{'--pct': progressPercent + '%'}" aria-hidden="true">
+        <div class="pdf-mini-fill"></div>
+      </div>
+    </div>
+    <div class="pdf-meta">
+      <div class="pdf-percent">{{ progressPercent }}%</div>
+      <button class="pdf-dismiss" @click.stop="isPdfPreviewLoading = false" title="Dismiss">✕</button>
+    </div>
+  </div>
+  <div class="editor-view">
+  <div v-if="isLoading" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading project...</p>
+  </div>
+
+  <!-- Editor content -->
+  <div v-else-if="images.length > 0" class="editor-container">
+    <!-- Sidebar: Thumbnails -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h3>Images ({{ images.length }})</h3>
+        <button class="btn-clear-all" @click="clearAllEdits" title="Clear all edits">Reset All</button>
+        <div class="save-status">
+          <span v-if="projectDirty" class="unsaved">⚠️ Unsaved</span>
+          <span v-else class="saved">✓ Saved</span>
+        </div>
+      </div>
+      
+      <div class="thumbnail-list">
+        <div
+          v-for="(image, index) in images"
+          :key="image.id"
+          class="thumbnail-item"
+          :class="{ active: selectedIndex === index }"
+          @click="selectImage(index)"
+        >
+          <div class="thumbnail-rotated-wrapper">
+            <img loading="lazy" :src="getThumbnailUrl(image.filename)" :alt="`Image ${index + 1}`" :style="{ transform: `rotate(${(image.rotation || 0) + (image.deskew_angle || 0)}deg)` }" />
+          </div>
+          <span :class="['thumb-number', { dirty: image._dirty }]">{{ index + 1 }}</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main canvas -->
+    <main class="canvas-area">
+      <div class="canvas-wrapper" ref="canvasWrapper">
+        <canvas ref="mainCanvas" class="main-canvas"></canvas>
+      </div>
+      
+      <!-- Zoom controls (floating) -->
+      <div class="zoom-controls">
+        <button @click="zoomOut" title="Zoom Out">−</button>
+        <span>{{ Math.round(zoom * 100) }}%</span>
+        <button @click="zoomIn" title="Zoom In">+</button>
+        <button @click="resetCropBoxes" title="Reset Crop Boxes">↺</button>
+        <button @click="centerView" title="Center View">⊙</button>
+      </div>
+    </main>
+
+    <!-- Tools panel -->
+    <aside class="tools-panel" ref="toolsPanel">
+      <div class="tool-section">
+        <h4>✂️ Crop Tools</h4>
+        <button @click="addCropBox" class="btn-tool" :disabled="hasCrop()" :title="hasCrop() ? 'Only one crop allowed' : 'Add a crop box'">Add Crop Box</button>
+        <button @click="clearCrops" class="btn-tool btn-danger" title="Remove crop">Clear Crop</button>
+        <button @click="cropFromMetadata" class="btn-tool">Crop from Metadata</button>
+        <button @click="updatePreview" class="btn-tool">Update Preview</button>
+        <div class="tool-hint">💡 Drag corners to resize<br>⌨️ Delete/Backspace to remove</div>
+      </div>
+      
+      <!-- Crop Preview in Tools Panel -->
+      <div class="tool-section preview-section" ref="previewSection">
+        <div class="preview-header-row">
+          <h4>✂️ Crop Preview</h4>
+          <button 
+            v-if="previewUrl" 
+            @click="openPreviewModal" 
+            class="btn-expand"
+            title="Fullscreen Preview"
+          >⛶</button>
+        </div>
+        <div v-if="!previewUrl" class="preview-placeholder">
+          <div class="placeholder-content">
+            <span class="placeholder-icon">✂️</span>
+            <p>Add crop box</p>
+          </div>
+        </div>
+        <div v-if="previewUrl" class="preview-container">
+          <img ref="previewImg" loading="lazy" decoding="async" :src="previewUrl" class="preview-image" :aria-busy="isPreviewLoading" :class="{ 'loading': isPreviewLoading }" @load="onPreviewImgLoad" @error="onPreviewImgError" alt="Crop Preview" />
+          <div v-if="isPreviewLoading" class="preview-loading-overlay" aria-hidden="true">
+            <div class="preview-loading-spinner"></div>
+          </div>
+          <div v-if="previewDimensions" class="preview-info">
+            <span title="Original image dimensions">📐 {{ previewDimensions.width }} × {{ previewDimensions.height }}px</span>
+            <span class="aspect-ratio">{{ previewDimensions.aspectRatio }}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="tool-section">
+        <h4>🔄 Rotation</h4>
+        <input
+          type="range"
+          v-model.number="currentRotation"
+          min="-15"
+          max="15"
+          step="0.1"
+          @mousedown="startRotationAdjust"
+          @input="handleAdjustment"
+          @mouseup="finishRotationAdjust"
+        />
+        <span>{{ currentRotation.toFixed(1) }}°</span>
+      </div>
+
+      <div class="tool-section">
+        <h4>☀️ Brightness</h4>
+        <input
+          type="range"
+          v-model.number="currentBrightness"
+          min="-100"
+          max="100"
+          step="1"
+          @mousedown="startBrightnessAdjust"
+          @input="onBrightnessInput"
+          @mouseup="finishBrightnessAdjust"
+        />
+        <span>{{ currentBrightness > 0 ? '+' : '' }}{{ currentBrightness }}</span>
+      </div>
+
+      <div class="tool-section">
+        <h4>🎨 Contrast</h4>
+        <input
+          type="range"
+          v-model.number="currentContrast"
+          min="-100"
+          max="100"
+          step="1"
+          @mousedown="startContrastAdjust"
+          @input="onContrastInput"
+          @mouseup="finishContrastAdjust"
+        />
+        <span>{{ currentContrast > 0 ? '+' : '' }}{{ currentContrast }}</span>
+      </div>
+
+      <button @click="resetAdjustments" class="btn-reset">⟲ Reset</button>
+    </aside>
+  </div>
+
+  <!-- Empty state -->
+  <div v-else class="empty-state">
+    <p>No images loaded</p>
+    <button @click="$emit('back')" class="btn-back">← Back to Projects</button>
+  </div>
+
+  <!-- PDF Pages Preview (expandable) -->
+  <section v-if="pdfPages.length > 0" class="pdf-preview-section">
+    <div class="preview-header" @click="showPdfPreview = !showPdfPreview">
+      <h3>📄 PDF Pages Preview ({{ pdfPages.length }})</h3>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button @click.stop="openPdfPreviewPanel()" :disabled="isPdfPreviewLoading" class="btn-preview-small">
+            {{ isPdfPreviewLoading ? 'Generating…' : 'Preview PDF' }}
+        </button>
+        <div v-if="isPdfPreviewLoading" class="inline-pdf-progress" title="PDF preview generating">
+          <div class="inline-progress-bar">
+            <div class="inline-fill" :style="{ width: progressPercent + '%' }"></div>
+          </div>
+          <span class="inline-progress-text">{{ progressPercent }}%</span>
+        </div>
+        <span class="toggle-icon">{{ showPdfPreview ? '▼' : '▶' }}</span>
+      </div>
+    </div>
+    <div v-show="showPdfPreview" class="pdf-pages-grid">
+      <div v-for="(page, idx) in pdfPages" :key="idx" class="pdf-page-item">
+        <img loading="lazy" :src="page.url" :alt="`Page ${idx + 1}`" />
+        <span class="page-number">Page {{ idx + 1 }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer actions -->
+  <footer v-if="images.length > 0" class="editor-footer">
+    <button @click="$emit('back')" class="btn-back">← Back</button>
+    <button @click="handleSave" class="btn-save" :disabled="!projectDirty">
+      💾 Save Changes
+    </button>
+    <button @click="showGenerateModal = true" class="btn-generate">
+      🚀 Generate PDF
+    </button>
+  </footer>
+
+  <!-- PDF Generation Modal -->
+  <div v-if="showGenerateModal" class="modal-overlay" @click="showGenerateModal = false">
+    <div class="modal-content" @click.stop>
+      <h3>Generate PDF</h3>
+      <div class="form-group">
+        <label>Quality:</label>
+        <select v-model="pdfConfig.quality">
+          <option value="low">Low (150 DPI)</option>
+          <option value="medium">Medium (200 DPI)</option>
+          <option value="high">High (300 DPI)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Paper Size:</label>
+        <select v-model="pdfConfig.paper_size">
+          <option value="a4_fit">A4 Fit</option>
+          <option value="a4_ratio">A4 Ratio</option>
+          <option value="original">Original Size</option>
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button @click="showGenerateModal = false" class="btn-cancel">Cancel</button>
+        <button @click="handleGenerate" class="btn-confirm">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress notification -->
+  <div v-if="showProgress" class="progress-notification">
+    <h4>🚀 Generating PDF</h4>
+    <div class="progress-bar-container">
+      <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+    </div>
+    <p>{{ progressMessage }}</p>
+    <p class="progress-percent-text">Progress: {{ progressPercent }}%</p>
+  </div>
+
+  <!-- Fullscreen Preview Modal -->
+  <div v-if="showPreviewModal" class="preview-modal-overlay" @click="closePreviewModal">
+    <div class="preview-modal-content" @click.stop>
+      <div class="preview-modal-header">
+        <h3>🔍 Crop Preview</h3>
+        <div class="preview-modal-controls">
+          <button @click="toggleGrid" :class="{ active: showGrid }" title="Toggle Grid">
+            <span class="grid-icon">⊞</span>
+          </button>
+          <button @click="previewZoomOut" title="Zoom Out">−</button>
+          <span class="zoom-display">{{ Math.round(previewZoom * 100) }}%</span>
+          <button @click="previewZoomIn" title="Zoom In">+</button>
+          <button @click="resetPreviewZoom" title="Reset Zoom">⟲</button>
+          <button @click="centerPreviewView" title="Center View">⊙</button>
+          <button @click="closePreviewModal" class="btn-close-modal" title="Close">✕</button>
+        </div>
+      </div>
+      <div class="preview-modal-body">
+        <div class="preview-canvas-wrapper">
+          <canvas ref="previewCanvas" class="preview-modal-canvas"></canvas>
+          <div 
+            v-if="showGrid && previewCanvasSize.width > 0" 
+            class="grid-overlay-modal"
+            :style="{
+              width: previewCanvasSize.width + 'px',
+              height: previewCanvasSize.height + 'px'
+            }"
+          >
+            <div class="grid-line grid-vertical" style="left: 33.33%"></div>
+            <div class="grid-line grid-vertical" style="left: 66.66%"></div>
+            <div class="grid-line grid-horizontal" style="top: 33.33%"></div>
+            <div class="grid-line grid-horizontal" style="top: 66.66%"></div>
+            <div class="corner-marker corner-tl"></div>
+            <div class="corner-marker corner-tr"></div>
+            <div class="corner-marker corner-bl"></div>
+            <div class="corner-marker corner-br"></div>
+          </div>
+        </div>
+      </div>
+      <div class="preview-modal-footer" v-if="previewDimensions">
+        <div class="dimension-info">
+          <span title="Original image dimensions">📐 {{ previewDimensions.width }} × {{ previewDimensions.height }}px</span>
+          <span>📊 {{ previewDimensions.aspectRatio }}</span>
+          <span class="dimension-note">✓ Original size</span>
+        </div>
+      </div>
+    </div>
+  </div>
+<!-- Server Crop Modal -->
+  </div>
+
+  <!-- Server Crop Modal -->
+  <div v-if="showServerCropModal" class="modal-overlay" @click="closeServerCropModal">
+  <div class="modal-content server-crop-modal" @click.stop>
+    <div class="modal-header">
+      <h3>🔍 Server Crop Result</h3>
+      <button @click="closeServerCropModal" class="btn-close-modal" title="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div v-if="serverCropUrl" class="server-crop-image-container">
+        <img loading="lazy" :src="serverCropUrl" class="server-crop-image" alt="Server cropped image" />
+      </div>
+      <div v-if="serverCropDimensions" class="crop-info">
+        <div class="dimension-info">
+          <span title="Cropped image dimensions">📐 {{ serverCropDimensions.width }} × {{ serverCropDimensions.height }}px</span>
+          <span>📊 {{ serverCropDimensions.aspectRatio }}</span>
+        </div>
+      </div>
+      <div v-if="serverCropDebugInfo" class="debug-info">
+        <h4>🐛 Debug Information</h4>
+        <details>
+          <summary>Original Size</summary>
+          <pre>{{ JSON.stringify(serverCropDebugInfo.original_size, null, 2) }}</pre>
+        </details>
+        <details>
+          <summary>BBoxes ({{ serverCropDebugInfo.bbox_count }})</summary>
+          <pre>{{ JSON.stringify(serverCropDebugInfo.bboxes, null, 2) }}</pre>
+        </details>
+        <details>
+          <summary>Final Crop Size</summary>
+          <pre>{{ JSON.stringify(serverCropDebugInfo.final_crop_size, null, 2) }}</pre>
+        </details>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>

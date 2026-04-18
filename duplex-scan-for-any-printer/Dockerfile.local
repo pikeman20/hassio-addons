@@ -1,0 +1,49 @@
+# Local development Dockerfile — runs without Home Assistant / s6-overlay / bashio
+# Uses standard Debian base and starts the Python app directly.
+# For the HA addon image (production), use Dockerfile instead.
+
+FROM python:3.10-slim-bookworm
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/src
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        cups \
+        cups-client \
+        cups-bsd \
+        cups-ipp-utils \
+        libcups2 \
+        libcupsimage2 \
+        dpkg \
+        libpaper-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Brother printer drivers (all .deb files, sorted — LPR before wrapper)
+COPY drivers/*.deb /tmp/drivers/
+RUN for deb in $(ls /tmp/drivers/*.deb | sort); do dpkg -i "$deb" || true; done \
+    && apt-get update && apt-get install -f -y \
+    && rm -rf /tmp/drivers /var/lib/apt/lists/*
+
+# Install Python packages
+COPY requirements.txt /tmp/
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
+
+# Copy application
+WORKDIR /app
+COPY src/ ./src/
+COPY checkpoints/ ./checkpoints/
+COPY run.py ./
+
+# Create expected runtime directories
+RUN mkdir -p /share/scan_inbox /share/scan_out /data
+
+EXPOSE 2121 8099 30000 30001 30002
+
+CMD ["python3", "run.py", "--config", "/data/config.yaml"]

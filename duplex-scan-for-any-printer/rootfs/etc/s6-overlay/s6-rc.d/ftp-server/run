@@ -1,0 +1,16 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Start FTP Server
+# Credentials loaded from S6 container environment (set by init-prepare)
+# Auto-restarts if crashes
+# ==============================================================================
+
+if command -v bashio &>/dev/null; then
+    bashio::log.info "Starting FTP server on port 2121..."
+else
+    echo "[ftp-server] Starting FTP server on port 2121..."
+fi
+
+cd /app
+
+exec python3 -m src.agent.ftp_server

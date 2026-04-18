@@ -1,0 +1,25 @@
+inbox_base: "scan_inbox"
+subdirs:
+  scan_duplex: "scan_duplex"
+  copy_duplex: "copy_duplex"
+  scan_document: "scan_document"
+  card_2in1: "card_2in1"
+  confirm: "confirm"
+  confirm_print: "confirm_print"
+  reject: "reject"
+output_dir: "scan_out"
+session_timeout_seconds: 300
+a4_page:
+  width_pt: 595
+  height_pt: 842
+margin_pt: 15
+delete_inbox_files_after_process: true
+test_mode: true
+
+# Telegram Bot Configuration
+telegram:
+  enabled: true  # Set to true to enable
+  bot_token: ""   # Set via SCAN_TELEGRAM_BOT_TOKEN environment variable
+  authorized_users: []  # List of authorized user IDs (Telegram user IDs)
+  notify_chat_ids: []   # Pre-configured chat IDs to receive notifications (paste from Bot Settings → Registered chats)
+  notify_on_session_ready: true  # Send notification when session needs confirmation

@@ -1,0 +1,67 @@
+name: Printer Duplex Scan Agent
+version: 1.0.1
+slug: printer-duplex-scan-agent
+description: Turn any single-sided scanner into a duplex scanning machine — just place your document and press Scan, the addon handles merging, deskewing, card layout, and more.
+url: https://github.com/pikeman20/duplex-scan-for-any-printer
+image: ghcr.io/pikeman20/duplex-scan-for-any-printer-{arch}
+arch:
+  - amd64
+  - aarch64
+ingress: true
+ingress_stream: true
+init: false
+hassio_api: true
+ports:
+  "2121/tcp": 2121
+  "8099/tcp": null
+  "30000/tcp": 30000
+  "30001/tcp": 30001
+  "30002/tcp": 30002
+ports_description:
+  "2121/tcp": FTP control port for scanner uploads
+  "8099/tcp": Web UI dashboard (via ingress)
+  "30000/tcp": FTP passive data port
+  "30001/tcp": FTP passive data port
+  "30002/tcp": FTP passive data port
+map:
+  - type: share
+    read_only: false
+  - type: ssl
+options:
+  log_level: info
+  session_timeout_seconds: 300
+  delete_inbox_files_after_process: true
+  test_mode: false
+  ftp:
+    username: ""
+    password: ""
+  printer:
+    enabled: false
+    name: ""
+    ip: ""
+  telegram:
+    enabled: false
+    bot_token: ""
+    authorized_users: []
+    notify_chat_ids: []
+    notify_on_session_ready: true
+schema:
+  log_level: "list(trace|debug|info|warning|error)?"
+  session_timeout_seconds: "int(30,3600)?"
+  delete_inbox_files_after_process: "bool?"
+  test_mode: "bool?"
+  ftp:
+    username: "str?"
+    password: "password?"
+  printer:
+    enabled: "bool"
+    name: "str?"
+    ip: "str?"
+  telegram:
+    enabled: "bool"
+    bot_token: "password?"
+    authorized_users:
+      - "str?"
+    notify_chat_ids:
+      - "str?"
+    notify_on_session_ready: "bool?"

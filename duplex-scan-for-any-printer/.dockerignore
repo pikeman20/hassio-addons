@@ -1,0 +1,77 @@
+# Docker ignore file for scan agent
+# Exclude unnecessary files from Docker build context
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+ENV/
+
+# Test files
+tests/
+test_*.py
+*_test.py
+
+# Documentation
+*.md
+!README.md
+docs/
+PHASE1_SUMMARY.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Data directories (will be mounted as volumes)
+scan_inbox/
+scan_inbox_to_test/
+scan_out/
+debug/
+logs/
+logs_test/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+temp/
+tmp/
+
+# Development scripts
+start_ftp_server.py
+test_ftp_user_simulation.py
+integration_tests.py
+integration_tests_all.py
+run.sh
+
+# Deployment (not for addon)
+deploy/
+docker-compose.yml
+
+# Environment files (will be configured via docker-compose)
+.env
+.env.*
+
+# Misc
+*.orig
+*.rej
