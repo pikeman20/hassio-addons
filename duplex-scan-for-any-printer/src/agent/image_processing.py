@@ -12,6 +12,7 @@ from withoutbg import OpenSourceModel
 import gc
 
 from agent import logger
+from agent.constants import CHECKPOINT_DIR, CHECKPOINT_FILES
 
 # Global model cache for background removal
 # Strategy: Load on demand, unload after batch to free RAM (~500MB-1GB)
@@ -26,21 +27,11 @@ def _get_bg_removal_model():
     """
     global _BG_REMOVAL_MODEL
     if _BG_REMOVAL_MODEL is None:
-        _checkpoint_paths = [
-            "./checkpoints/depth_anything_v2_vits_slim.onnx",
-            "./checkpoints/isnet_uint8.onnx",
-            "./checkpoints/focus_matting_1.0.0.onnx",
-            "./checkpoints/focus_refiner_1.0.0.onnx",
-        ]
-        _total_mb = sum(os.path.getsize(p) for p in _checkpoint_paths if os.path.exists(p)) / 1024 / 1024
+        checkpoint_kwargs = {arg: f"{CHECKPOINT_DIR}/{name}" for name, arg in CHECKPOINT_FILES}
+        _total_mb = sum(os.path.getsize(p) for p in checkpoint_kwargs.values() if os.path.exists(p)) / 1024 / 1024
         logger.info(f"🔄 Loading background removal model ({_total_mb:.0f} MB)...")
         load_start = time.time()
-        _BG_REMOVAL_MODEL = OpenSourceModel(
-            depth_model_path=_checkpoint_paths[0],
-            isnet_model_path=_checkpoint_paths[1],
-            matting_model_path=_checkpoint_paths[2],
-            refiner_model_path=_checkpoint_paths[3],
-        )
+        _BG_REMOVAL_MODEL = OpenSourceModel(**checkpoint_kwargs)
         load_time = time.time() - load_start
         logger.info(f"✅ Model loaded successfully in {load_time:.2f}s")
     return _BG_REMOVAL_MODEL

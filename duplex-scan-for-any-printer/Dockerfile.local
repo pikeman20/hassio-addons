@@ -2,6 +2,15 @@
 # Uses standard Debian base and starts the Python app directly.
 # For the HA addon image (production), use Dockerfile instead.
 
+# Stage 1: Build Vue frontend
+FROM node:20-slim AS web-builder
+WORKDIR /web_ui
+COPY web_ui/package.json web_ui/package-lock.json ./
+RUN npm ci
+COPY web_ui/ ./
+RUN npm run build
+
+# Stage 2: Main app image
 FROM python:3.10-slim-bookworm
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -40,6 +49,7 @@ WORKDIR /app
 COPY src/ ./src/
 COPY checkpoints/ ./checkpoints/
 COPY run.py ./
+COPY --from=web-builder /web_ui/dist/ ./web_ui/dist/
 
 # Create expected runtime directories
 RUN mkdir -p /share/scan_inbox /share/scan_out /data

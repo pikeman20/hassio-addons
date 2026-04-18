@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 
 from agent import logger
+from agent.constants import CHECKPOINT_DIR, CHECKPOINT_FILES
 from agent.error_handler import ConfigurationError
 
 
@@ -151,13 +152,8 @@ class ConfigValidator:
         """Validate that model checkpoint files exist."""
         logger.info("🧠 Checking model checkpoints...")
         
-        checkpoint_dir = Path("checkpoints")
-        required_files = [
-            "depth_anything_v2_vits_slim.onnx",
-            "focus_matting_1.0.0.onnx",
-            "focus_refiner_1.0.0.onnx",
-            "isnet.onnx"
-        ]
+        checkpoint_dir = Path(CHECKPOINT_DIR)
+        required_files = [name for name, _ in CHECKPOINT_FILES]
         
         if not checkpoint_dir.exists():
             self.errors.append(

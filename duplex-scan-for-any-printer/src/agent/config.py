@@ -78,8 +78,8 @@ class Config:
             telegram=TelegramConfig(
                 enabled=bool(telegram_raw.get("enabled", False)) if telegram_raw else False,
                 bot_token=str(telegram_raw.get("bot_token", "")) if telegram_raw else "",
-                authorized_users=[int(x) for x in (telegram_raw.get("authorized_users") or []) if telegram_raw] if telegram_raw else [],
-                notify_chat_ids=[int(x) for x in (telegram_raw.get("notify_chat_ids") or []) if telegram_raw] if telegram_raw else [],
+                authorized_users=[int(x) for x in (telegram_raw.get("authorized_users") or [])] if telegram_raw else [],
+                notify_chat_ids=[int(x) for x in (telegram_raw.get("notify_chat_ids") or [])] if telegram_raw else [],
                 notify_on_session_ready=bool(telegram_raw.get("notify_on_session_ready", True)) if telegram_raw else True,
             ),
             margin_pt=int(raw.get("margin_pt", 10)),

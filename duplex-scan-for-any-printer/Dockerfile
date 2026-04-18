@@ -1,3 +1,12 @@
+# Stage 1: Build Vue frontend
+FROM node:20-slim AS web-builder
+WORKDIR /web_ui
+COPY web_ui/package.json web_ui/package-lock.json ./
+RUN npm ci
+COPY web_ui/ ./
+RUN npm run build
+
+# Stage 2: Main HA addon image
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
@@ -42,6 +51,7 @@ RUN pip3 install --no-cache-dir -r /tmp/requirements.txt \
 WORKDIR /app
 COPY src/ ./src/
 COPY checkpoints/ ./checkpoints/
+COPY --from=web-builder /web_ui/dist/ ./web_ui/dist/
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/src
