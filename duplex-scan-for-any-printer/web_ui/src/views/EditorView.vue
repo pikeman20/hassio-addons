@@ -8,8 +8,7 @@ import type { Ref } from 'vue';
 import { useEditorStore } from '@/stores/editor';
 // Note: `CanvasEngine` is exported from `src/core/canvas-engine.ts`
 import { CanvasEngine } from '@/core/canvas-engine';
-// PDF preview worker (offloads heavy image compositing)
-// Note: Vite/webpack may require special loader for `*.worker.ts` imports.
+import { apiUrl } from '@/utils/api';
 // We create the worker dynamically to avoid build issues when loader missing.
 let pdfPreviewWorker: Worker | null = null;
 function getPdfPreviewWorker(): Worker | null {
@@ -284,7 +283,7 @@ async function loadProject(): Promise<void> {
   
   isLoading.value = true;
   try {
-    const response = await axios.get(`/api/projects/${projectId.value}/metadata`);
+    const response = await axios.get(`api/projects/${projectId.value}/metadata`);
     const rawImages: any[] = response.data.images || [];
 
     // Build ID→original map BEFORE sorting so __original is always attached to
@@ -779,7 +778,7 @@ async function cropFromMetadata(): Promise<void> {
 
     let response;
     try {
-      response = await axios.post(`/api/crop-from-metadata`, {
+      response = await axios.post(`api/crop-from-metadata`, {
         project_id: projectId.value,
         image_index: selectedIndex.value,
         bbox: currentImage.value.bbox,
@@ -1886,7 +1885,7 @@ async function handleSave(): Promise<void> {
     const metadata = { images: editableImages };
     
     console.log('Sending metadata:', metadata);
-    await axios.put(`/api/projects/${projectId.value}/metadata`, metadata);
+    await axios.put(`api/projects/${projectId.value}/metadata`, metadata);
     // Clear dirty flags per-image and project dirty indicator
     images.value.forEach(img => { img._dirty = false; });
     isDirty.value = false;
@@ -1910,7 +1909,7 @@ async function handleGenerate() {
   pdfPages.value = [];
   
   const eventSource = new EventSource(
-    `/api/projects/${projectId.value}/generate?` +
+    apiUrl(`api/projects/${projectId.value}/generate?`) +
     new URLSearchParams(pdfConfig.value as any)
   );
   
@@ -1977,7 +1976,7 @@ async function handleGenerate() {
 async function loadPdfPages(): Promise<void> {
   try {
     // Get output images from project
-    const response = await axios.get(`/api/projects/${projectId.value}/output`);
+    const response = await axios.get(`api/projects/${projectId.value}/output`);
     if (response.data.images) {
       pdfPages.value = response.data.images.map((filename: string, idx: number) => ({
         url: getImageUrl(filename, 'medium'),
@@ -2094,7 +2093,7 @@ function getImageUrl(filename: string | undefined, size = 'medium'): string {
   const pid = projectId.value;
   if (!pid) return '';
 
-  return `/api/images/${cleanFilename}?project_id=${pid}&size=${size}`;
+  return apiUrl(`api/images/${cleanFilename}?project_id=${pid}&size=${size}`);
 }
 
 function getThumbnailUrl(filename: string | undefined): string {

@@ -117,7 +117,7 @@ const deletingId = ref<string | null>(null)
 const loadProjects = async () => {
   isLoading.value = true
   try {
-    const response = await axios.get('/api/projects')
+    const response = await axios.get('api/projects')
     projects.value = response.data.projects as Project[]
   } catch (error) {
     console.error('Failed to load projects:', error)
@@ -134,7 +134,7 @@ const deleteProject = async (project: Project) => {
   if (!confirm(`Delete "${project.filename}" permanently?\nThis cannot be undone.`)) return
   deletingId.value = project.id
   try {
-    await axios.delete(`/api/projects/${project.id}`)
+    await axios.delete(`api/projects/${project.id}`)
     projects.value = projects.value.filter(p => p.id !== project.id)
   } catch (error) {
     console.error('Failed to delete project:', error)

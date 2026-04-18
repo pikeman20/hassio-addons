@@ -3,9 +3,8 @@ import { createPinia } from 'pinia'
 import axios from 'axios'
 import App from './App.vue'
 
-// HA ingress serves the app under a dynamic subpath (e.g. /api/hassio_ingress/<token>/).
-// Using relative baseURL ensures API calls resolve correctly through any proxy prefix.
-axios.defaults.baseURL = './'
+// HA ingress injects a <base href="..."> tag — document.baseURI picks it up automatically.
+axios.defaults.baseURL = document.baseURI
 
 const app = createApp(App)
 const pinia = createPinia()

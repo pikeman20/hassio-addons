@@ -57,7 +57,7 @@ export const useScansStore = defineStore('scans', {
       this.isLoading = true
       this.error = null
       try {
-        const response = await axios.get('/api/activity')
+        const response = await axios.get('api/activity')
         this.activity = response.data.items ?? []
         this.scans = this.activity  // keep compat
       } catch (error: any) {
@@ -70,7 +70,7 @@ export const useScansStore = defineStore('scans', {
 
     async fetchBotStatus() {
       try {
-        const response = await axios.get('/api/bot/status')
+        const response = await axios.get('api/bot/status')
         this.botStatus = response.data
       } catch (error) {
         console.error('Failed to fetch bot status:', error)
@@ -79,7 +79,7 @@ export const useScansStore = defineStore('scans', {
 
     async fetchBotInfo() {
       try {
-        const response = await axios.get('/api/bot/info')
+        const response = await axios.get('api/bot/info')
         this.botInfo = response.data
       } catch (error) {
         console.error('Failed to fetch bot info:', error)
@@ -88,7 +88,7 @@ export const useScansStore = defineStore('scans', {
 
     async fetchSessionStatus() {
       try {
-        const response = await axios.get('/api/session/status')
+        const response = await axios.get('api/session/status')
         this.sessionStatus = response.data
       } catch (error) {
         console.error('Failed to fetch session status:', error)
@@ -97,7 +97,7 @@ export const useScansStore = defineStore('scans', {
 
     async confirmSession(printRequested = false): Promise<{ ok: boolean; message?: string }> {
       try {
-        const response = await axios.post(`/api/session/confirm?print_requested=${printRequested}`)
+        const response = await axios.post(`api/session/confirm?print_requested=${printRequested}`)
         await this.fetchSessionStatus()
         return response.data
       } catch (error: any) {
@@ -107,7 +107,7 @@ export const useScansStore = defineStore('scans', {
 
     async rejectSession(): Promise<{ ok: boolean; message?: string }> {
       try {
-        const response = await axios.post('/api/session/reject')
+        const response = await axios.post('api/session/reject')
         await this.fetchSessionStatus()
         return response.data
       } catch (error: any) {
@@ -117,7 +117,7 @@ export const useScansStore = defineStore('scans', {
 
     async deleteScan(filename: string) {
       try {
-        await axios.delete(`/api/scan/${filename}`)
+        await axios.delete(`api/scan/${filename}`)
         this.scans = this.scans.filter((scan: any) => scan.filename !== filename)
       } catch (error) {
         console.error('Failed to delete scan:', error)
