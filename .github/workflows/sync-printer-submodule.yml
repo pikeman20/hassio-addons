@@ -33,7 +33,7 @@ jobs:
       - name: Update duplex-scan-for-any-printer submodule
         id: update
         run: |
-          git submodule update --remote --merge duplex-scan-for-any-printer
+          git submodule update --remote duplex-scan-for-any-printer
           if git diff --staged --quiet && git diff --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "No changes in submodule."
