@@ -4,6 +4,10 @@ on:
   push:
     paths:
       - '**'
+  workflow_run:
+    workflows: ["Sync duplex-scan-for-any-printer Submodule"]
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       addon:
@@ -43,6 +47,21 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.addon }}" ]; then
             ADDON="${{ github.event.inputs.addon }}"
+            ARCHS=$(yq '.build_from | keys | join(" ")' $ADDON/build.yaml)
+            MATRIX="{\"include\":["
+            for arch in $ARCHS; do
+              MATRIX="$MATRIX{\"addon\":\"$ADDON\",\"arch\":\"$arch\"},"
+            done
+            MATRIX="${MATRIX%,}]}"
+            echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+            echo "has_matrix=true" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+              echo "Sync workflow did not succeed, skipping build."
+              echo "has_matrix=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            ADDON="duplex-scan-for-any-printer"
             ARCHS=$(yq '.build_from | keys | join(" ")' $ADDON/build.yaml)
             MATRIX="{\"include\":["
             for arch in $ARCHS; do
