@@ -2,3 +2,4 @@ addons:
   - ecovacs-bumper
   - assist_microphone
   - addon-nginx-proxy-manager/proxy-manager
+  - duplex-scan-for-any-printer

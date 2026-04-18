@@ -14,6 +14,7 @@ on:
           - addon-nginx-proxy-manager/proxy-manager
           - assist_microphone
           - ecovacs-bumper
+          - duplex-scan-for-any-printer
 
 jobs:
   detect-and-build:

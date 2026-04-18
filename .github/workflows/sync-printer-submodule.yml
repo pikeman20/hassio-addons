@@ -1,4 +1,4 @@
-name: Sync PrinterDuplexScanForCheapPrint Submodule
+name: Sync duplex-scan-for-any-printer Submodule
 
 on:
   workflow_dispatch:
@@ -25,16 +25,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update PrinterDuplexScanForCheapPrint submodule
+      - name: Update duplex-scan-for-any-printer submodule
         id: update
         run: |
-          git submodule update --remote --merge PrinterDuplexScanForCheapPrint
+          git submodule update --remote --merge duplex-scan-for-any-printer
           if git diff --staged --quiet && git diff --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "No changes in submodule."
           else
             echo "changed=true" >> $GITHUB_OUTPUT
-            NEW_COMMIT=$(git -C PrinterDuplexScanForCheapPrint rev-parse --short HEAD)
+            NEW_COMMIT=$(git -C duplex-scan-for-any-printer rev-parse --short HEAD)
             echo "new_commit=$NEW_COMMIT" >> $GITHUB_OUTPUT
             echo "Submodule updated to $NEW_COMMIT"
           fi
@@ -44,6 +44,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add PrinterDuplexScanForCheapPrint
-          git commit -m "chore: update PrinterDuplexScanForCheapPrint submodule to ${{ steps.update.outputs.new_commit }}"
+          git add duplex-scan-for-any-printer
+          git commit -m "chore: update duplex-scan-for-any-printer submodule to ${{ steps.update.outputs.new_commit }}"
           git push
