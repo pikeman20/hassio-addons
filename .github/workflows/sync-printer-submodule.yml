@@ -18,12 +18,14 @@ jobs:
       contents: write
 
     steps:
-      - name: Checkout repository with submodules
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: true
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Register submodule
+        run: git submodule init duplex-scan-for-any-printer
 
       - name: Configure git identity
         run: |
