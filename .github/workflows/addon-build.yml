@@ -25,6 +25,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 2
 
       - name: Get changed files
         id: changed
@@ -52,8 +55,13 @@ jobs:
             ADDONS=$(yq '.addons | join(" ")' .github/addons.yaml)
             MATRIX="{\"include\":["
             HAS_MATRIX="false"
+            # Also get submodule pointer changes (e.g. duplex-scan-for-any-printer)
+            SUBMODULE_CHANGES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
             for addon in $ADDONS; do
-              if grep -q "^$addon/" <<< "${{ steps.changed.outputs.all_changed_files }}" || grep -q "^$addon$" <<< "${{ steps.changed.outputs.all_changed_files }}"; then
+              CHANGED_FILES="${{ steps.changed.outputs.all_changed_files }}"
+              if grep -q "^$addon/" <<< "$CHANGED_FILES" \
+                || grep -q "^$addon$" <<< "$CHANGED_FILES" \
+                || grep -q "^$addon$" <<< "$SUBMODULE_CHANGES"; then
                 ARCHS=$(yq '.build_from | keys | join(" ")' $addon/build.yaml)
                 for arch in $ARCHS; do
                   MATRIX="$MATRIX{\"addon\":\"$addon\",\"arch\":\"$arch\"},"
