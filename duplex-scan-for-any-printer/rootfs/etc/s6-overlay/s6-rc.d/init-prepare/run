@@ -35,8 +35,8 @@ if command -v bashio &>/dev/null; then
     FTP_PASSWORD=$(bashio::config 'ftp.password' '')
     TG_ENABLED=$(bashio::config 'telegram.enabled' 'false')
     TG_TOKEN=$(bashio::config 'telegram.bot_token' '')
-    TG_AUTH=$(bashio::config 'telegram.authorized_users' '[]')
-    TG_NOTIFY=$(bashio::config 'telegram.notify_chat_ids' '[]')
+    TG_AUTH=$(bashio::config 'telegram.authorized_users' 'null' | jq -c 'if type == "array" then . else [] end')
+    TG_NOTIFY=$(bashio::config 'telegram.notify_chat_ids' 'null' | jq -c 'if type == "array" then . else [] end')
     TG_NOTIFY_ON_READY=$(bashio::config 'telegram.notify_on_session_ready' 'true')
 
     log_info "Log level: $(bashio::config 'log_level' 'info')"
