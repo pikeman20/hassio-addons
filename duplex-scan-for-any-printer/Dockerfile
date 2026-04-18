@@ -1,3 +1,6 @@
+# ARG must be declared before all FROM statements to be usable in FROM
+ARG BUILD_FROM
+
 # Stage 1: Build Vue frontend
 FROM node:20-slim AS web-builder
 WORKDIR /web_ui
@@ -7,7 +10,6 @@ COPY web_ui/ ./
 RUN npm run build
 
 # Stage 2: Main HA addon image
-ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
