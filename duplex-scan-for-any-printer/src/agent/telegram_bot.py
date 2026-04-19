@@ -26,6 +26,12 @@ from agent.notification_manager import NotificationChannel
 
 logger = logging.getLogger(__name__)
 
+# How long to wait after the last image before editing the Telegram message.
+# Debounces rapid bursts (e.g. 10 pages scanned back-to-back) into a single edit,
+# and also gives the initial send_message call time to complete so _notification_messages
+# is populated before the edit is attempted.
+_IMAGE_COUNT_DEBOUNCE_SECS = 1.5
+
 
 @dataclass
 class TelegramBot(NotificationChannel):
@@ -44,6 +50,9 @@ class TelegramBot(NotificationChannel):
     _notification_messages: Dict[int, int] = field(default_factory=dict, repr=False)  # chat_id -> message_id
     # Debounce timers for live image-count edits: session_id -> threading.Timer
     _update_timers: Dict[str, Any] = field(default_factory=dict, repr=False)
+    # Set synchronously in notify_session_ready (before async send) so notify_image_added
+    # can start debounce timers even while the initial send is still in-flight.
+    _session_ready_notified: bool = field(default=False, repr=False)
 
     @property
     def name(self) -> str:
@@ -75,6 +84,7 @@ class TelegramBot(NotificationChannel):
     def notify_session_ready(self, session_info: Dict[str, Any]) -> None:
         """Store session info and notify all registered chats with inline confirm/reject buttons."""
         self.update_session_info(session_info)
+        self._session_ready_notified = True  # sync flag — set before async send
         if not self.config.notify_on_session_ready:
             return
         msg = (
@@ -87,15 +97,19 @@ class TelegramBot(NotificationChannel):
 
     def notify_image_added(self, session_info: Dict[str, Any]) -> None:
         """Debounced: edit tracked notification messages with updated image count."""
-        if not self._notification_messages:
-            return  # No message to update — fast exit
         self.update_session_info(session_info)
+        # Gate on the synchronous flag, not _notification_messages.
+        # When 2 images arrive fast, the initial send may still be in-flight
+        # (_notification_messages empty) but _session_ready_notified is already True.
+        # The 1.5s debounce ensures _notification_messages is populated by fire time.
+        if not self._session_ready_notified:
+            return
         session_id = session_info.get("id", "")
         # Cancel existing pending timer for this session
         existing = self._update_timers.pop(session_id, None)
         if existing:
             existing.cancel()
-        timer = threading.Timer(1.5, self._do_update_image_count, args=[dict(session_info)])
+        timer = threading.Timer(_IMAGE_COUNT_DEBOUNCE_SECS, self._do_update_image_count, args=[dict(session_info)])
         self._update_timers[session_id] = timer
         timer.start()
 
@@ -136,6 +150,7 @@ class TelegramBot(NotificationChannel):
         for t in self._update_timers.values():
             t.cancel()
         self._update_timers.clear()
+        self._session_ready_notified = False
 
     def notify_session_processed(
         self,

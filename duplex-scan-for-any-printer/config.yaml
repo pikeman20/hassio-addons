@@ -1,5 +1,5 @@
 name: Printer Duplex Scan Agent
-version: 1.0.11
+version: 1.0.12
 slug: printer-duplex-scan-agent
 description: Turn any single-sided scanner into a duplex scanning machine — just place your document and press Scan, the addon handles merging, deskewing, card layout, and more.
 url: https://github.com/pikeman20/duplex-scan-for-any-printer
