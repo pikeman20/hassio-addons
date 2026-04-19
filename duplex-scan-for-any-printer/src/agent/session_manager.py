@@ -32,12 +32,14 @@ class SessionManager:
         timeout_seconds: int,
         on_confirm: Callable[[Session], None],
         on_reject: Callable[[Session], None],
-        on_state_change: Optional[Callable[[Session, str, str], None]] = None
+        on_state_change: Optional[Callable[[Session, str, str], None]] = None,
+        on_image_added: Optional[Callable[[Session], None]] = None,
     ):
         self.timeout_seconds = timeout_seconds
         self.on_confirm_cb = on_confirm
         self.on_reject_cb = on_reject
         self.on_state_change_cb = on_state_change
+        self.on_image_added_cb = on_image_added
         self._by_mode: Dict[str, Session] = {}
         self._suspended_by_mode: Dict[str, Session] = {}
         self._lock = threading.Lock()
@@ -92,6 +94,10 @@ class SessionManager:
 
             s.images.append(path)
             s.last_activity = time.time()
+            cb_session = s if self.on_image_added_cb else None
+        # Call outside lock — timer is fast and non-blocking
+        if cb_session and self.on_image_added_cb:
+            self.on_image_added_cb(cb_session)
 
     def hint_wait_confirm(self, mode: str):
         with self._lock:

@@ -774,6 +774,7 @@ class ScanAgent:
             on_confirm=lambda s: process_session(cfg, s, self.notification_manager),
             on_reject=self._on_session_rejected,
             on_state_change=self._on_session_state_change,
+            on_image_added=self._on_image_added,
         )
         self.watcher = FTPWatcher(cfg.inbox_base, cfg.subdirs, self._on_new_file)
 
@@ -808,6 +809,16 @@ class ScanAgent:
             }
             self.notification_manager.notify_session_ready(session_info)
             logger.info(f"Session {session.id} ready for confirmation (mode: {session.mode})")
+
+    def _on_image_added(self, session: Session) -> None:
+        """Notify channels when an image is added to an active session (live count update)."""
+        session_info = {
+            "id": session.id,
+            "mode": session.mode,
+            "state": session.state,
+            "image_count": len(session.images),
+        }
+        self.notification_manager.notify_image_added(session_info)
 
     def _handle_telegram_command(self, confirm: bool, print_requested: bool) -> None:
         """Handle commands from Telegram bot."""

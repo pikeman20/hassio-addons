@@ -58,6 +58,9 @@ class NotificationChannel(ABC):
     def stop(self) -> None:
         """Disconnect / stop polling."""
 
+    def notify_image_added(self, session_info: Dict[str, Any]) -> None:
+        """Called when an image is added to an active session. Default: no-op."""
+
     def notify_session_action(self, confirmed: bool, action_by: str = "external") -> None:
         """Called when a session is confirmed/rejected from an external source (e.g. Web UI).
 
@@ -91,6 +94,14 @@ class NotificationManager:
                 ch.notify_session_processed(session_id, mode, success, pdf_path=pdf_path)
             except Exception as e:
                 logger.error("[%s] notify_session_processed failed: %s", ch.name, e)
+
+    def notify_image_added(self, session_info: Dict[str, Any]) -> None:
+        """Broadcast image-added event to all channels (for live count updates)."""
+        for ch in self._channels:
+            try:
+                ch.notify_image_added(session_info)
+            except Exception as e:
+                logger.error("[%s] notify_image_added failed: %s", ch.name, e)
 
     def notify_session_action(self, confirmed: bool, action_by: str = "external") -> None:
         """Broadcast confirm/reject action to all channels (for UI cleanup)."""

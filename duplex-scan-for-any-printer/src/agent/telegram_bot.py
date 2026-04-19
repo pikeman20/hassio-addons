@@ -42,6 +42,8 @@ class TelegramBot(NotificationChannel):
     _confirmer_chat_id: Optional[int] = field(default=None, repr=False)  # who confirmed — gets the PDF
     # Track message_ids sent per chat so we can edit them (remove buttons) when session resolves.
     _notification_messages: Dict[int, int] = field(default_factory=dict, repr=False)  # chat_id -> message_id
+    # Debounce timers for live image-count edits: session_id -> threading.Timer
+    _update_timers: Dict[str, Any] = field(default_factory=dict, repr=False)
 
     @property
     def name(self) -> str:
@@ -59,6 +61,17 @@ class TelegramBot(NotificationChannel):
             "message": "Bot operational" if self._running else "Bot stopped",
         }
 
+    @property
+    def _session_keyboard(self) -> InlineKeyboardMarkup:
+        """Confirm/reject keyboard shared by initial notification and live-count edits."""
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("\u2705 Confirm", callback_data="cmd_confirm"),
+                InlineKeyboardButton("\U0001f5a8 Confirm + Print", callback_data="cmd_confirm_print"),
+            ],
+            [InlineKeyboardButton("\u274c Reject", callback_data="cmd_reject")],
+        ])
+
     def notify_session_ready(self, session_info: Dict[str, Any]) -> None:
         """Store session info and notify all registered chats with inline confirm/reject buttons."""
         self.update_session_info(session_info)
@@ -70,14 +83,59 @@ class TelegramBot(NotificationChannel):
             f"<b>Mode:</b> {session_info.get('mode', 'N/A')}\n"
             f"<b>Images:</b> {session_info.get('image_count', 0)}"
         )
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("\u2705 Confirm", callback_data="cmd_confirm"),
-                InlineKeyboardButton("\U0001f5a8 Confirm + Print", callback_data="cmd_confirm_print"),
-            ],
-            [InlineKeyboardButton("\u274c Reject", callback_data="cmd_reject")],
-        ])
-        self.send_notification(msg, reply_markup=keyboard)
+        self.send_notification(msg, reply_markup=self._session_keyboard)
+
+    def notify_image_added(self, session_info: Dict[str, Any]) -> None:
+        """Debounced: edit tracked notification messages with updated image count."""
+        if not self._notification_messages:
+            return  # No message to update — fast exit
+        self.update_session_info(session_info)
+        session_id = session_info.get("id", "")
+        # Cancel existing pending timer for this session
+        existing = self._update_timers.pop(session_id, None)
+        if existing:
+            existing.cancel()
+        timer = threading.Timer(1.5, self._do_update_image_count, args=[dict(session_info)])
+        self._update_timers[session_id] = timer
+        timer.start()
+
+    def _do_update_image_count(self, session_info: Dict[str, Any]) -> None:
+        """Timer callback: edit the Telegram message with the latest image count."""
+        session_id = session_info.get("id", "")
+        self._update_timers.pop(session_id, None)
+        if not self._notification_messages:
+            return
+        # Prefer the live-updated _latest_session_info for freshest count
+        info = self._latest_session_info or session_info
+        msg = (
+            f"\U0001f4c4 <b>Session Ready for Confirmation</b>\n\n"
+            f"<b>ID:</b> {info.get('id', 'N/A')}\n"
+            f"<b>Mode:</b> {info.get('mode', 'N/A')}\n"
+            f"<b>Images:</b> {info.get('image_count', session_info.get('image_count', 0))}"
+        )
+        self._schedule(self._edit_notifications_with_keyboard(msg, self._session_keyboard))
+
+    async def _edit_notifications_with_keyboard(
+        self, new_text: str, keyboard: InlineKeyboardMarkup
+    ) -> None:
+        """Edit all tracked session-notification messages and re-attach the given keyboard."""
+        for chat_id, message_id in list(self._notification_messages.items()):
+            try:
+                await self._application.bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=message_id,
+                    text=new_text,
+                    parse_mode="HTML",
+                    reply_markup=keyboard,
+                )
+            except Exception as e:
+                logger.debug(f"Could not edit notification in chat {chat_id}: {e}")
+
+    def _cancel_update_timers(self) -> None:
+        """Cancel all pending debounce timers (called on session resolve)."""
+        for t in self._update_timers.values():
+            t.cancel()
+        self._update_timers.clear()
 
     def notify_session_processed(
         self,
@@ -97,6 +155,7 @@ class TelegramBot(NotificationChannel):
             self._schedule(
                 self._send_pdf(self._confirmer_chat_id, pdf_path, session_id)
             )
+        self._cancel_update_timers()
         self._latest_session_info = None
         self._confirmer_chat_id = None
         self._notification_messages.clear()
@@ -162,6 +221,7 @@ class TelegramBot(NotificationChannel):
         this dict is empty and the edit part becomes a safe no-op.
         Always clears session state so /status reflects the resolved session.
         """
+        self._cancel_update_timers()
         messages_snapshot = dict(self._notification_messages)
         self._notification_messages.clear()
         # Clear session state regardless of source so /status returns "no active session"
