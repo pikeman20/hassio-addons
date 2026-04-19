@@ -35,8 +35,8 @@ if command -v bashio &>/dev/null; then
     FTP_PASSWORD=$(bashio::config 'ftp.password' '')
     TG_ENABLED=$(bashio::config 'telegram.enabled' 'false')
     TG_TOKEN=$(bashio::config 'telegram.bot_token' '')
-    TG_AUTH=$(bashio::config 'telegram.authorized_users' '[]' | jq -c '[.[]? | tonumber? // empty]' 2>/dev/null || echo '[]')
-    TG_NOTIFY=$(bashio::config 'telegram.notify_chat_ids' '[]' | jq -c '[.[]? | tonumber? // empty]' 2>/dev/null || echo '[]')
+    TG_AUTH=$(bashio::config 'telegram.authorized_users' '' | jq -Rc '[splits(",") | gsub("^ +| +$";"") | select(length > 0) | tonumber]' 2>/dev/null || echo '[]')
+    TG_NOTIFY=$(bashio::config 'telegram.notify_chat_ids' '' | jq -Rc '[splits(",") | gsub("^ +| +$";"") | select(length > 0) | tonumber]' 2>/dev/null || echo '[]')
     TG_NOTIFY_ON_READY=$(bashio::config 'telegram.notify_on_session_ready' 'true')
 
     log_info "Log level: $(bashio::config 'log_level' 'info')"
@@ -80,6 +80,10 @@ EOF
     log_info "--- Generated config ---"
     cat /data/config.yaml
     log_info "--- End config ---"
+    log_info "telegram.authorized_users (raw): $(bashio::config 'telegram.authorized_users' '')"
+    log_info "telegram.authorized_users (parsed): ${TG_AUTH}"
+    log_info "telegram.notify_chat_ids (raw): $(bashio::config 'telegram.notify_chat_ids' '')"
+    log_info "telegram.notify_chat_ids (parsed): ${TG_NOTIFY}"
 else
     # Plain Docker mode: /data/config.yaml must already be mounted from test_data/
     if [ ! -f "/data/config.yaml" ]; then
