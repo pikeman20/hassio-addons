@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 _session_manager: Optional[Any] = None
 _notification_manager: Optional[Any] = None
 _session_command_cb: Optional[Callable] = None  # (confirm: bool, print_requested: bool) -> None
+_config: Optional[Any] = None
 
 app = FastAPI(title="Scan Agent Internal API", docs_url=None, redoc_url=None)
 
@@ -34,12 +35,14 @@ def init(
     session_manager: Any,
     notification_manager: Any,
     session_command_cb: Callable,
+    config: Any = None,
 ) -> None:
     """Wire up references. Must be called before start_in_thread()."""
-    global _session_manager, _notification_manager, _session_command_cb
+    global _session_manager, _notification_manager, _session_command_cb, _config
     _session_manager = session_manager
     _notification_manager = notification_manager
     _session_command_cb = session_command_cb
+    _config = config
 
 
 def start_in_thread(host: str = "127.0.0.1", port: int = 8098) -> None:
@@ -120,9 +123,24 @@ async def session_reject():
 @app.get("/api/channels/status")
 async def channels_status():
     """Return status of all notification channels (Telegram, etc.)."""
-    if _notification_manager is None:
-        return JSONResponse({"channels": {}})
-    return JSONResponse({"channels": _notification_manager.get_statuses()})
+    channels: dict = {}
+    if _notification_manager is not None:
+        channels = _notification_manager.get_statuses()
+
+    # Report disabled-but-configured channels so the UI can distinguish
+    # "disabled with token" from "not configured at all"
+    if "telegram" not in channels and _config is not None:
+        tg_cfg = getattr(_config, "telegram", None)
+        if tg_cfg is not None:
+            configured = bool(getattr(tg_cfg, "bot_token", None))
+            channels["telegram"] = {
+                "enabled": False,
+                "configured": configured,
+                "connected": False,
+                "message": "Telegram disabled" if configured else "Telegram not configured",
+            }
+
+    return JSONResponse({"channels": channels})
 
 
 @app.get("/api/channels/telegram/info")

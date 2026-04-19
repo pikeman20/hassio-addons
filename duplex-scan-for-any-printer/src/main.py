@@ -72,7 +72,10 @@ def process_session(cfg: Config, s: Session, notification_manager=None):
         
         # Check disk space before processing (require 100MB free)
         check_disk_space(cfg.output_dir, required_mb=100)
-        # Prepare project directory and move source images into project's own storage
+        # Prepare project directory and copy source images into project's own storage.
+        # Original inbox paths are saved separately for later cleanup so the project
+        # images are never deleted by the delete_inbox_files_after_process logic.
+        _inbox_paths_to_delete = list(s.images)  # Save originals BEFORE copying
         try:
             project_dir = os.path.join(cfg.output_dir, s.id)
             images_dir = os.path.join(project_dir, 'images')
@@ -92,19 +95,20 @@ def process_session(cfg: Config, s: Session, notification_manager=None):
                         name, ext = os.path.splitext(base)
                         target_name = f"{name}_{idx}{ext}"
                     target_path = os.path.join(images_dir, target_name)
-                    shutil.move(p, target_path)
+                    shutil.copy2(p, target_path)  # Copy — inbox cleanup happens separately
                     moved_paths.append(target_path)
                 except Exception as e:
-                    logger.warning(f"Failed to move {p} to project folder: {e}")
+                    logger.warning(f"Failed to copy {p} to project folder: {e}")
 
-            # Replace session images list with moved paths (if any moved), otherwise keep originals
+            # Replace session images list with project paths for processing
             if moved_paths:
                 s.images = moved_paths
 
         except Exception as e:
             logger.warning(f"Failed to prepare project storage for session {s.id}: {e}")
+            _inbox_paths_to_delete = []  # Don't delete if copy failed
 
-        out_pdf = _process_session_inner(cfg, s, session_start)
+        out_pdf = _process_session_inner(cfg, s, session_start, inbox_paths=_inbox_paths_to_delete)
         success = True
         
     except Exception as e:
@@ -118,7 +122,7 @@ def process_session(cfg: Config, s: Session, notification_manager=None):
             )
 
 
-def _process_session_inner(cfg: Config, s: Session, session_start: float):
+def _process_session_inner(cfg: Config, s: Session, session_start: float, inbox_paths: list = None):
     """Inner session processing logic (extracted for error handling)."""
     
     mode = s.mode
@@ -733,7 +737,9 @@ def _process_session_inner(cfg: Config, s: Session, session_start: float):
     if cfg.delete_inbox_files_after_process and not getattr(cfg, "test_mode", False):
         deleted_count = 0
         failed_count = 0
-        for p in s.images:
+        # Delete ORIGINAL inbox paths (not project copies) to preserve project images
+        paths_to_clean = inbox_paths if inbox_paths is not None else s.images
+        for p in paths_to_clean:
             try:
                 if os.path.exists(p):
                     os.remove(p)
@@ -780,7 +786,7 @@ class ScanAgent:
         self.running = False
 
         # Wire internal agent API so the web UI and other processes can reach us
-        agent_api.init(self.sessions, self.notification_manager, self._handle_telegram_command)
+        agent_api.init(self.sessions, self.notification_manager, self._handle_telegram_command, config=cfg)
 
     def _on_session_rejected(self, session: Session) -> None:
         """Called by SessionManager when a session is rejected or times out.

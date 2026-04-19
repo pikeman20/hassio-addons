@@ -9,17 +9,60 @@ from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import FTPHandler
 from pyftpdlib.servers import FTPServer
 
+# Only accept file types a scanner would produce
+_ALLOWED_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".pdf", ".tiff", ".tif", ".bmp"})
+
+# Disk space thresholds (MB)
+_WARN_FREE_MB = 200   # Log a warning when free space drops below this
+_REFUSE_FREE_MB = 50  # Delete the just-received file when free space is critically low
+
 
 class ScannerFTPHandler(FTPHandler):
-    """Custom FTP handler with logging."""
-    
+    """Custom FTP handler with logging, extension filtering, and disk guards."""
+
     def on_file_received(self, file):
         """Called when a file upload is completed."""
+        # 1. Extension whitelist — reject anything a scanner wouldn't produce
+        ext = os.path.splitext(file)[1].lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            logging.warning(
+                f"FTP: Rejected file with disallowed extension '{ext}': {file}. "
+                f"Allowed: {', '.join(sorted(_ALLOWED_EXTENSIONS))}"
+            )
+            try:
+                os.remove(file)
+            except OSError as e:
+                logging.error(f"FTP: Failed to remove rejected file: {e}")
+            return
+
+        # 2. Disk space guard — act after upload so we always have a statvfs target
+        try:
+            stat = os.statvfs(file)
+            free_mb = (stat.f_bavail * stat.f_frsize) / (1024 * 1024)
+            if free_mb < _REFUSE_FREE_MB:
+                logging.error(
+                    f"FTP: Disk critically low ({free_mb:.0f} MB free). "
+                    f"Deleting received file to prevent disk exhaustion: {file}"
+                )
+                try:
+                    os.remove(file)
+                except OSError as e:
+                    logging.error(f"FTP: Failed to remove file during disk guard: {e}")
+                return
+            if free_mb < _WARN_FREE_MB:
+                logging.warning(f"FTP: Low disk space — only {free_mb:.0f} MB free.")
+        except OSError:
+            pass  # statvfs not available (non-Linux); skip check
+
         logging.info(f"FTP file received: {file}")
-    
+
     def on_incomplete_file_received(self, file):
-        """Called when a file upload was interrupted."""
-        logging.warning(f"FTP incomplete file: {file}")
+        """Called when a file upload was interrupted. Remove the partial file."""
+        logging.warning(f"FTP: Upload interrupted, removing partial file: {file}")
+        try:
+            os.remove(file)
+        except OSError as e:
+            logging.error(f"FTP: Failed to remove partial file: {e}")
 
 
 def start_ftp_server(
@@ -56,10 +99,15 @@ def start_ftp_server(
         )
         logging.info(f"FTP: Added user '{username}' with password")
     else:
-        # Anonymous user
+        # Anonymous user — write-only (upload files, list dirs, change dir)
+        # No read/delete/rename to prevent data exfiltration or destructive operations
         authorizer.add_anonymous(
             homedir=directory,
-            perm="elradfmw"  # Full permissions for anonymous
+            perm="elw"  # e=change-dir, l=list, w=store(upload)
+        )
+        logging.warning(
+            "FTP: Anonymous access with WRITE-ONLY permissions enabled. "
+            "Set ftp.username and ftp.password in config to require authentication."
         )
         logging.info("FTP: Anonymous access enabled")
     
@@ -69,7 +117,10 @@ def start_ftp_server(
     
     # Passive ports (for PASV mode) — 3 ports is enough for home use
     handler.passive_ports = range(30000, 30003)
-    
+
+    # Disconnect idle clients — prevents resource exhaustion from stale connections
+    handler.timeout = 30
+
     # Banner
     handler.banner = "Scan Agent FTP Server ready"
     

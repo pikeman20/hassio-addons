@@ -5,6 +5,7 @@ FastAPI backend serving REST API and static files
 from __future__ import annotations
 
 import os
+import re
 import base64
 import json
 import time
@@ -103,13 +104,14 @@ if HAS_PYVIPS:
 else:
     print("ℹ️  pyvips not available — falling back to Pillow (PIL). For best performance, install libvips and pyvips.")
 
-# CORS for development
+# CORS: dev server needs localhost:5173; production runs same-origin via HA Ingress
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 # Models
@@ -162,6 +164,33 @@ def _calculateDPI(imWidth: int, imHeight: int) -> int:
     common_dpi = [75, 100, 150, 200, 300, 600, 1200]
     scan_dpi = min(common_dpi, key=lambda v: abs(v - inferred_dpi))
     return scan_dpi
+
+
+_PROJECT_ID_RE = re.compile(r'^[\w\-]+$')
+
+
+def _validate_project_id(project_id: str) -> None:
+    """Raise HTTP 400 if project_id contains characters that could enable traversal."""
+    if not _PROJECT_ID_RE.match(project_id):
+        raise HTTPException(status_code=400, detail="Invalid project_id")
+
+
+def _safe_path(base_dir: str, *parts: str) -> str:
+    """Join path parts and verify the result stays within base_dir. Raises HTTP 400 on traversal."""
+    joined = os.path.join(base_dir, *parts)
+    resolved = os.path.realpath(joined)
+    base_resolved = os.path.realpath(base_dir)
+    if not resolved.startswith(base_resolved + os.sep) and resolved != base_resolved:
+        raise HTTPException(status_code=400, detail="Invalid path")
+    return resolved
+
+
+def _safe_500(e: Exception, context: str = "Operation failed") -> HTTPException:
+    """Log the real error server-side; return a generic message to the client."""
+    print(f"ERROR [{context}]: {e}")
+    import traceback
+    traceback.print_exc()
+    return HTTPException(status_code=500, detail=context)
 
 # API Endpoints
 
@@ -403,7 +432,8 @@ async def list_projects():
 @app.get("/api/projects/{project_id}/images")
 async def get_project_images(project_id: str):
     """Extract all images from PDF project"""
-    pdf_path = os.path.join(SCAN_OUT_DIR, f"{project_id}.pdf")
+    _validate_project_id(project_id)
+    pdf_path = _safe_path(SCAN_OUT_DIR, f"{project_id}.pdf")
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -434,13 +464,14 @@ async def get_project_images(project_id: str):
         return {"images": images}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to extract project images")
 
 
 @app.get("/api/projects/{project_id}/metadata")
 async def get_project_metadata(project_id: str):
     """Get project metadata from pipeline-generated JSON"""
-    metadata_path = os.path.join(SCAN_OUT_DIR, f"{project_id}.json")
+    _validate_project_id(project_id)
+    metadata_path = _safe_path(SCAN_OUT_DIR, f"{project_id}.json")
 
     if not os.path.exists(metadata_path):
         raise HTTPException(status_code=404, detail="Metadata not found")
@@ -449,7 +480,7 @@ async def get_project_metadata(project_id: str):
         with open(metadata_path, 'r', encoding='utf-8') as f:
             metadata = json.load(f)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to load project metadata")
 
     # Metadata now stores simple filenames (no paths)
     # Frontend will use /api/images/{project_id}/{filename} to access
@@ -473,8 +504,9 @@ async def get_project_output(project_id: str):
     - Otherwise, if a PDF exists (preferred: `{project_id}_color.pdf`, then `{project_id}.pdf`, then edited PDF), extract pages to that images folder and return filenames.
     - If nothing is available, return an empty `images` list.
     """
+    _validate_project_id(project_id)
     try:
-        project_images_dir = os.path.join(SCAN_OUT_DIR, project_id, 'images')
+        project_images_dir = _safe_path(SCAN_OUT_DIR, project_id, 'images')
 
         # If images directory exists and has image files, return them
         if os.path.isdir(project_images_dir):
@@ -485,9 +517,9 @@ async def get_project_output(project_id: str):
 
         # No pre-extracted images — try to find a PDF to extract pages from
         pdf_candidates = [
-            os.path.join(SCAN_OUT_DIR, f"{project_id}_color.pdf"),
-            os.path.join(SCAN_OUT_DIR, f"{project_id}.pdf"),
-            os.path.join(SCAN_OUT_DIR, f"{project_id}_edited.pdf"),
+            _safe_path(SCAN_OUT_DIR, f"{project_id}_color.pdf"),
+            _safe_path(SCAN_OUT_DIR, f"{project_id}.pdf"),
+            _safe_path(SCAN_OUT_DIR, f"{project_id}_edited.pdf"),
         ]
 
         for pdf_path in pdf_candidates:
@@ -526,7 +558,7 @@ async def get_project_output(project_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to get project output")
 
 
 @app.get("/api/images/{filename}")
@@ -562,9 +594,12 @@ async def get_project_image(filename: str, project_id: str, size: str = "medium"
     # Security: Prevent directory traversal
     if '..' in filename or filename.startswith('/') or '\\' in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
-    
+
+    # Security: Validate project_id
+    _validate_project_id(project_id)
+
     # Security: Validate project exists and get source path
-    project_json = os.path.join(SCAN_OUT_DIR, f"{project_id}.json")
+    project_json = _safe_path(SCAN_OUT_DIR, f"{project_id}.json")
     if not os.path.exists(project_json):
         raise HTTPException(status_code=404, detail="Project not found")
     
@@ -573,7 +608,7 @@ async def get_project_image(filename: str, project_id: str, size: str = "medium"
         with open(project_json, 'r') as f:
             metadata = json.load(f)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load metadata: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to load metadata")
     
     # Find image in metadata
     img_meta = next((img for img in metadata.get('images', []) 
@@ -583,19 +618,13 @@ async def get_project_image(filename: str, project_id: str, size: str = "medium"
         raise HTTPException(status_code=404, detail=f"Image not in project: {filename}")
 
     # Only serve images from the project's `images` folder under SCAN_OUT_DIR
-    project_images_dir = os.path.join(SCAN_OUT_DIR, project_id, 'images')
+    project_images_dir = _safe_path(SCAN_OUT_DIR, project_id, 'images')
 
     # Build expected path
-    source_path = os.path.join(project_images_dir, filename)
+    source_path = _safe_path(project_images_dir, filename)
 
     if not os.path.exists(source_path):
-        # Helpful error message mentioning the expected location
-        expected = os.path.join(SCAN_OUT_DIR, project_id, 'images')
-        raise HTTPException(status_code=404, detail=f"Source image not found for: {filename}. Expected in project images folder: {expected}")
-    
-    # Security: Verify source file exists
-    if not os.path.exists(source_path):
-        raise HTTPException(status_code=404, detail=f"Source image not found: {filename}")
+        raise HTTPException(status_code=404, detail=f"Source image not found for: {filename}")
     
     # Security: Check file size of original (limit 50MB)
     source_size = os.path.getsize(source_path)
@@ -1072,7 +1101,7 @@ async def list_scans():
 @app.get("/api/scan/{filename}/info")
 async def get_scan_info(filename: str):
     """Get PDF metadata"""
-    filepath = os.path.join(SCAN_OUT_DIR, filename)
+    filepath = _safe_path(SCAN_OUT_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
     
@@ -1095,16 +1124,13 @@ async def get_scan_info(filename: str):
         doc.close()
         return info
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/scan/{filename}/page/{page_num}")
+        raise _safe_500(e, "Failed to get scan info")
 async def get_page_image(filename: str, page_num: int, size: str = "medium"):
     """
     Extract page as image with specified size
     size: small (400px), medium (800px), large (1200px)
     """
-    filepath = os.path.join(SCAN_OUT_DIR, filename)
+    filepath = _safe_path(SCAN_OUT_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
     
@@ -1135,14 +1161,16 @@ async def get_page_image(filename: str, page_num: int, size: str = "medium"):
             media_type="image/png",
             headers={"Cache-Control": "max-age=3600"}
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to render page")
 
 
 @app.get("/api/scan/{filename}/pages")
 async def get_all_pages(filename: str, size: str = "small"):
     """Get all pages as base64 images (for thumbnail gallery)"""
-    filepath = os.path.join(SCAN_OUT_DIR, filename)
+    filepath = _safe_path(SCAN_OUT_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
     
@@ -1168,13 +1196,13 @@ async def get_all_pages(filename: str, size: str = "small"):
         doc.close()
         return {"pages": pages}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to get pages")
 
 
 @app.post("/api/edit")
 async def apply_edits(request: EditRequest):
     """Apply edits to PDF and generate new file"""
-    filepath = os.path.join(SCAN_OUT_DIR, request.filename)
+    filepath = _safe_path(SCAN_OUT_DIR, request.filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
     
@@ -1308,8 +1336,10 @@ async def apply_edits(request: EditRequest):
             "metadata_saved": True
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to apply edits")
 
 
 @app.get("/api/scan/{filename}/metadata")
@@ -1317,7 +1347,7 @@ async def get_scan_metadata(filename: str):
     """Get metadata for edited scan (bbox info, etc)"""
     # Remove .pdf extension and add .json
     base_name = os.path.splitext(filename)[0]
-    metadata_path = os.path.join(SCAN_OUT_DIR, f"{base_name}.json")
+    metadata_path = _safe_path(SCAN_OUT_DIR, f"{base_name}.json")
     
     if not os.path.exists(metadata_path):
         return {"has_metadata": False}
@@ -1330,13 +1360,13 @@ async def get_scan_metadata(filename: str):
             **metadata
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to load scan metadata")
 
 
 @app.get("/api/download/{filename}")
 async def download_file(filename: str):
     """Download PDF file"""
-    filepath = os.path.join(SCAN_OUT_DIR, filename)
+    filepath = _safe_path(SCAN_OUT_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
     
@@ -1350,7 +1380,7 @@ async def download_file(filename: str):
 @app.delete("/api/scan/{filename}")
 async def delete_scan(filename: str):
     """Delete PDF file"""
-    filepath = os.path.join(SCAN_OUT_DIR, filename)
+    filepath = _safe_path(SCAN_OUT_DIR, filename)
     if not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="File not found")
     
@@ -1358,7 +1388,7 @@ async def delete_scan(filename: str):
         os.remove(filepath)
         return {"status": "deleted", "filename": filename}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise _safe_500(e, "Failed to delete scan")
 
 
 @app.delete("/api/projects/{project_id}")
