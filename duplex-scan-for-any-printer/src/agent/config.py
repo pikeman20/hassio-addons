@@ -6,6 +6,25 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 
+def _parse_int_list(value) -> List[int]:
+    """Parse authorized_users / notify_chat_ids.
+
+    Accepts multiple input formats produced by HA Supervisor / YAML:
+    - str  "111,222"  -> [111, 222]   (comma-separated, schema str?)
+    - list [111, 222] -> [111, 222]   (legacy list-of-int, forward-compat)
+    - int  111        -> [111]        (HA scalar bug, defensive)
+    - None / ""       -> []
+    """
+    if not value and value != 0:
+        return []
+    if isinstance(value, int):
+        return [value]
+    if isinstance(value, (list, tuple)):
+        return [int(x) for x in value if x is not None]
+    # string: split by comma
+    return [int(x.strip()) for x in str(value).split(",") if x.strip().lstrip("-").isdigit()]
+
+
 @dataclass
 class A4Page:
     width_pt: int = 595
@@ -78,8 +97,8 @@ class Config:
             telegram=TelegramConfig(
                 enabled=bool(telegram_raw.get("enabled", False)) if telegram_raw else False,
                 bot_token=str(telegram_raw.get("bot_token", "")) if telegram_raw else "",
-                authorized_users=[int(x) for x in (telegram_raw.get("authorized_users") or [])] if telegram_raw else [],
-                notify_chat_ids=[int(x) for x in (telegram_raw.get("notify_chat_ids") or [])] if telegram_raw else [],
+                authorized_users=_parse_int_list(telegram_raw.get("authorized_users")) if telegram_raw else [],
+                notify_chat_ids=_parse_int_list(telegram_raw.get("notify_chat_ids")) if telegram_raw else [],
                 notify_on_session_ready=bool(telegram_raw.get("notify_on_session_ready", True)) if telegram_raw else True,
             ),
             margin_pt=int(raw.get("margin_pt", 10)),
