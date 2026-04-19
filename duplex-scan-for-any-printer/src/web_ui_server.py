@@ -189,6 +189,10 @@ async def bot_status():
         default_message = "Agent not reachable"
     elif not telegram:
         default_message = "Telegram not configured"
+    elif not telegram.get("enabled", False):
+        # Agent reported the channel — check if it's configured but disabled
+        configured = telegram.get("configured", bool(telegram.get("bot_token")))
+        default_message = "Telegram disabled" if configured else "Telegram not configured"
     else:
         default_message = "Bot stopped"
 
