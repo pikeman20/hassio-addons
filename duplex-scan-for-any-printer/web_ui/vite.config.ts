@@ -10,6 +10,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  worker: {
+    format: 'es',
+    rollupOptions: {
+      output: {
+        entryFileNames: '[name]-[hash].js'
+      }
+    }
+  },
   server: {
     port: 5173,
     proxy: {

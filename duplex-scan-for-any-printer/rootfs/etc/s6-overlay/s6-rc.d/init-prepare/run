@@ -80,10 +80,7 @@ EOF
     log_info "--- Generated config ---"
     cat /data/config.yaml
     log_info "--- End config ---"
-    log_info "telegram.authorized_users (raw): $(bashio::config 'telegram.authorized_users' '')"
-    log_info "telegram.authorized_users (parsed): ${TG_AUTH}"
-    log_info "telegram.notify_chat_ids (raw): $(bashio::config 'telegram.notify_chat_ids' '')"
-    log_info "telegram.notify_chat_ids (parsed): ${TG_NOTIFY}"
+
 else
     # Plain Docker mode: /data/config.yaml must already be mounted from test_data/
     if [ ! -f "/data/config.yaml" ]; then

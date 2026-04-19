@@ -4,33 +4,41 @@ FastAPI backend serving REST API and static files
 """
 from __future__ import annotations
 
+import base64
+import io
+import json
+import mimetypes
 import os
 import re
-import base64
-import json
-import time
 import sys
-from typing import List, Dict, Optional
+import time
+import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Dict, List, Optional
 
+import cv2
+import fitz  # PyMuPDF
+import httpx
+import numpy as np
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import fitz  # PyMuPDF
-import cv2
-import numpy as np
 from PIL import Image
-import io
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import traceback
+from pydantic import BaseModel
+
 # Try to import pyvips for faster, low-memory image resizing when available
 try:
     import pyvips
     HAS_PYVIPS = True
 except Exception:
     HAS_PYVIPS = False
+
+
+# Some OS/distro configs map .ts to Qt Linguist MIME type which breaks module
+# workers under strict browser MIME checking. Override to correct type.
+mimetypes.add_type("application/javascript", ".ts")
 
 # Configuration
 # Auto-detect environment: Docker vs Local
@@ -78,7 +86,6 @@ if _ssl_cert and not os.path.exists(_ssl_cert):
     except ImportError:
         del os.environ["SSL_CERT_FILE"]
 
-import httpx
 
 def _local_client() -> httpx.AsyncClient:
     """Return an httpx client suitable for localhost-only calls.

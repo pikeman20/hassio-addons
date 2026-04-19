@@ -14,9 +14,9 @@ let pdfPreviewWorker: Worker | null = null;
 function getPdfPreviewWorker(): Worker | null {
   if (pdfPreviewWorker) return pdfPreviewWorker;
   try {
-    // Vite-compatible worker import: resolve relative to this file
-    const url = new URL('../workers/pdfPreview.worker.ts', import.meta.url).href;
-    pdfPreviewWorker = new Worker(url, { type: 'module' });
+    // Vite-compatible worker import: pass URL object directly (no .href) so
+    // Vite's static analyser rewrites the path to the built .js asset.
+    pdfPreviewWorker = new Worker(new URL('../workers/pdfPreview.worker.ts', import.meta.url), { type: 'module' });
     pdfWorkerStatus.value = 'created-module';
     pdfPreviewWorker.addEventListener('message', (ev) => {
       try {
